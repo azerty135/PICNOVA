@@ -134,3 +134,45 @@ export interface DepositInput {
   method: string;
 }
 
+export interface AdminStats {
+  totalUsers: number;
+  totalDeposited: number;
+  totalWithdrawn: number;
+  totalInvested: number;
+  pendingWithdrawals: number;
+  activeInvestments: number;
+}
+
+export interface AdminUser {
+  id: number;
+  phone: string;
+  balance: number;
+  totalInvested: number;
+  totalGains: number;
+  isAdmin: boolean;
+  createdAt: string;
+}
+
+export interface AdminWithdrawal {
+  id: number;
+  userId: number;
+  userPhone: string;
+  amount: number;
+  method: string;
+  accountDetails: string;
+  status: string;
+  createdAt: string;
+  /** @nullable */
+  processedAt?: string | null;
+}
+
+export interface BroadcastInput {
+  message: string;
+}
+
+export interface BroadcastNotification {
+  id: number;
+  message: string;
+  sentAt: string;
+}
+

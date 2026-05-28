@@ -180,6 +180,94 @@ export const CreateWithdrawalBody = zod.object({
 
 
 /**
+ * @summary Get platform statistics
+ */
+export const GetAdminStatsResponse = zod.object({
+  "totalUsers": zod.number(),
+  "totalDeposited": zod.number(),
+  "totalWithdrawn": zod.number(),
+  "totalInvested": zod.number(),
+  "pendingWithdrawals": zod.number(),
+  "activeInvestments": zod.number()
+})
+
+
+/**
+ * @summary List all users
+ */
+export const GetAdminUsersResponseItem = zod.object({
+  "id": zod.number(),
+  "phone": zod.string(),
+  "balance": zod.number(),
+  "totalInvested": zod.number(),
+  "totalGains": zod.number(),
+  "isAdmin": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const GetAdminUsersResponse = zod.array(GetAdminUsersResponseItem)
+
+
+/**
+ * @summary List all withdrawal requests
+ */
+export const GetAdminWithdrawalsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "userPhone": zod.string(),
+  "amount": zod.number(),
+  "method": zod.string(),
+  "accountDetails": zod.string(),
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "processedAt": zod.string().nullish()
+})
+export const GetAdminWithdrawalsResponse = zod.array(GetAdminWithdrawalsResponseItem)
+
+
+/**
+ * @summary Approve a withdrawal request
+ */
+export const ApproveWithdrawalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ApproveWithdrawalResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Reject a withdrawal request
+ */
+export const RejectWithdrawalParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RejectWithdrawalResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Send a global message to all users
+ */
+export const SendBroadcastBody = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get broadcast notifications
+ */
+export const GetNotificationsResponseItem = zod.object({
+  "id": zod.number(),
+  "message": zod.string(),
+  "sentAt": zod.string()
+})
+export const GetNotificationsResponse = zod.array(GetNotificationsResponseItem)
+
+
+/**
  * @summary Make a deposit
  */
 export const CreateDepositBody = zod.object({

@@ -17,6 +17,7 @@ import Transactions from "@/pages/transactions";
 import Profile from "@/pages/profile";
 import Equipe from "@/pages/equipe";
 import Service from "@/pages/service";
+import Admin from "@/pages/admin";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ function ProtectedRoutes() {
         <Route path="/profile" component={Profile} />
         <Route path="/equipe" component={Equipe} />
         <Route path="/service" component={Service} />
+        <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

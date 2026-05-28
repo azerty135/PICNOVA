@@ -3,8 +3,9 @@ import { useLogout } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/format";
-import { LogOut, User as UserIcon, Shield, CreditCard } from "lucide-react";
+import { LogOut, User as UserIcon, Shield, CreditCard, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 
 export default function Profile() {
   const { user, refreshUser } = useAuth();
@@ -69,9 +70,21 @@ export default function Profile() {
           </CardContent>
         </Card>
 
+        {user.isAdmin && (
+          <Link href="/admin">
+            <Button
+              data-testid="button-admin-panel"
+              variant="outline"
+              className="w-full border-primary/30 text-primary hover:bg-primary/10 h-12"
+            >
+              <Settings className="w-4 h-4 mr-2" /> Panneau d'administration
+            </Button>
+          </Link>
+        )}
+
         <Button 
           variant="destructive" 
-          className="w-full mt-8 bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 h-12"
+          className="w-full mt-2 bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20 h-12"
           onClick={handleLogout}
           disabled={logout.isPending}
         >

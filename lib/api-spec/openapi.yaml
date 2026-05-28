@@ -20,6 +20,8 @@ tags:
     description: Transaction history
   - name: withdrawals
     description: Withdrawal requests
+  - name: admin
+    description: Admin operations
 paths:
   /healthz:
     get:
@@ -251,6 +253,157 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get platform statistics
+      responses:
+        "200":
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [admin]
+      summary: List all users
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/withdrawals:
+    get:
+      operationId: getAdminWithdrawals
+      tags: [admin]
+      summary: List all withdrawal requests
+      responses:
+        "200":
+          description: All withdrawals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminWithdrawal"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/withdrawals/{id}/approve:
+    post:
+      operationId: approveWithdrawal
+      tags: [admin]
+      summary: Approve a withdrawal request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/withdrawals/{id}/reject:
+    post:
+      operationId: rejectWithdrawal
+      tags: [admin]
+      summary: Reject a withdrawal request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/broadcast:
+    post:
+      operationId: sendBroadcast
+      tags: [admin]
+      summary: Send a global message to all users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BroadcastInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/notifications:
+    get:
+      operationId: getNotifications
+      tags: [admin]
+      summary: Get broadcast notifications
+      responses:
+        "200":
+          description: Notifications list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BroadcastNotification"
 
   /deposits:
     post:
@@ -500,3 +653,105 @@ components:
       required:
         - amount
         - method
+
+    AdminStats:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        totalDeposited:
+          type: number
+        totalWithdrawn:
+          type: number
+        totalInvested:
+          type: number
+        pendingWithdrawals:
+          type: integer
+        activeInvestments:
+          type: integer
+      required:
+        - totalUsers
+        - totalDeposited
+        - totalWithdrawn
+        - totalInvested
+        - pendingWithdrawals
+        - activeInvestments
+
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        phone:
+          type: string
+        balance:
+          type: number
+        totalInvested:
+          type: number
+        totalGains:
+          type: number
+        isAdmin:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - phone
+        - balance
+        - totalInvested
+        - totalGains
+        - isAdmin
+        - createdAt
+
+    AdminWithdrawal:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userPhone:
+          type: string
+        amount:
+          type: number
+        method:
+          type: string
+        accountDetails:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+        processedAt:
+          type: ["string", "null"]
+      required:
+        - id
+        - userId
+        - userPhone
+        - amount
+        - method
+        - accountDetails
+        - status
+        - createdAt
+
+    BroadcastInput:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    BroadcastNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        sentAt:
+          type: string
+      required:
+        - id
+        - message
+        - sentAt
