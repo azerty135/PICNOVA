@@ -1,0 +1,57 @@
+import { Router } from "express";
+import { db, usersTable, transactionsTable } from "@workspace/db";
+import { eq, desc, count, and, sql } from "drizzle-orm";
+import { investmentsTable, withdrawalsTable } from "@workspace/db";
+
+const router = Router();
+
+router.get("/summary", async (req, res) => {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Non authentifié" });
+    return;
+  }
+
+  const userId = req.session.userId;
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user) {
+    res.status(401).json({ error: "Utilisateur non trouvé" });
+    return;
+  }
+
+  const [activeInvestmentsResult] = await db
+    .select({ count: count() })
+    .from(investmentsTable)
+    .where(and(eq(investmentsTable.userId, userId), eq(investmentsTable.status, "active")));
+
+  const [pendingWithdrawalsResult] = await db
+    .select({ total: sql<string>`coalesce(sum(${withdrawalsTable.amount}), 0)` })
+    .from(withdrawalsTable)
+    .where(and(eq(withdrawalsTable.userId, userId), eq(withdrawalsTable.status, "pending")));
+
+  const recentTransactions = await db
+    .select()
+    .from(transactionsTable)
+    .where(eq(transactionsTable.userId, userId))
+    .orderBy(desc(transactionsTable.createdAt))
+    .limit(5);
+
+  res.json({
+    balance: parseFloat(user.balance),
+    totalInvested: parseFloat(user.totalInvested),
+    totalGains: parseFloat(user.totalGains),
+    activeInvestments: activeInvestmentsResult.count,
+    pendingWithdrawals: parseFloat(pendingWithdrawalsResult.total ?? "0"),
+    recentTransactions: recentTransactions.map((t) => ({
+      id: t.id,
+      userId: t.userId,
+      type: t.type,
+      amount: parseFloat(t.amount),
+      description: t.description,
+      status: t.status,
+      createdAt: t.createdAt.toISOString(),
+    })),
+  });
+});
+
+export default router;

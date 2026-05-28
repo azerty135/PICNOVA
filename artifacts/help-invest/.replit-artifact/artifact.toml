@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "HELP - Application d'Investissement"
+version = "1.0.0"
+id = "artifacts/help-invest"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23806
+
+[services.development]
+run = "pnpm --filter @workspace/help-invest run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/help-invest", "run", "build" ]
+publicDir = "artifacts/help-invest/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23806"
+BASE_PATH = "/"
