@@ -3,56 +3,69 @@ import { useCreateDeposit } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, PhoneCall } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DEPOSIT_AMOUNTS = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
 
-const PAYMENT_METHODS = [
-  { value: "usdt_trc20", label: "USDT (TRC20)" },
-  { value: "usdt_erc20", label: "USDT (ERC20)" },
-  { value: "btc", label: "Bitcoin (BTC)" },
-  { value: "mobile_money", label: "Mobile Money" },
-  { value: "bank_transfer", label: "Virement Bancaire" },
-];
+function buildUssdCode(amount: number): string {
+  return `*123*${amount}#`;
+}
 
 export default function Deposit() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const createDeposit = useCreateDeposit();
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
-  const [method, setMethod] = useState("usdt_trc20");
 
-  const handleSubmit = () => {
-    if (!selectedAmount) {
-      toast({
-        title: "Montant requis",
-        description: "Veuillez sélectionner un montant.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const [pendingAmount, setPendingAmount] = useState<number | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const selectAmount = (amount: number) => {
+    setPendingAmount(amount);
+    setDialogOpen(true);
+  };
+
+  const handleConfirm = () => {
+    if (!pendingAmount) return;
+    setDialogOpen(false);
+
+    const ussdCode = buildUssdCode(pendingAmount);
 
     createDeposit.mutate(
-      { data: { amount: selectedAmount, method } },
+      { data: { amount: pendingAmount, method: "mobile_money" } },
       {
         onSuccess: () => {
           toast({
-            title: "Dépôt confirmé",
-            description: `$${selectedAmount} ajoutés à votre compte.`,
+            title: "Dépôt en attente",
+            description: `Redirection vers Mobile Money pour valider $${pendingAmount}.`,
           });
-          setLocation("/dashboard");
+          window.location.href = `tel:${ussdCode}`;
+          setTimeout(() => setLocation("/dashboard"), 2000);
         },
         onError: () => {
           toast({
             title: "Erreur",
-            description: "Impossible de traiter le dépôt. Réessayez.",
+            description: "Impossible d'enregistrer le dépôt. Réessayez.",
             variant: "destructive",
           });
         },
       }
     );
+  };
+
+  const handleCancel = () => {
+    setDialogOpen(false);
+    setPendingAmount(null);
   };
 
   return (
@@ -73,10 +86,11 @@ export default function Deposit() {
             <button
               key={amount}
               data-testid={`amount-btn-${amount}`}
-              onClick={() => setSelectedAmount(amount)}
+              onClick={() => selectAmount(amount)}
+              disabled={createDeposit.isPending}
               className={cn(
                 "relative py-4 px-2 rounded-xl border text-sm font-bold transition-all duration-150 select-none",
-                selectedAmount === amount
+                pendingAmount === amount && dialogOpen
                   ? "bg-primary text-background border-primary shadow-md shadow-primary/30 scale-[1.03]"
                   : "bg-card border-border/60 text-foreground hover:border-primary/50 hover:text-primary"
               )}
@@ -87,59 +101,65 @@ export default function Deposit() {
         </div>
       </div>
 
-      {/* Selected amount display */}
+      {/* Mobile Money info */}
       <div className="px-4 mt-6">
-        <div className="bg-card border border-border/50 rounded-xl p-4 flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Montant sélectionné</span>
-          <span className="text-2xl font-bold text-primary">
-            {selectedAmount ? `$${selectedAmount.toLocaleString()}` : "—"}
-          </span>
+        <div className="flex items-start gap-3 bg-card border border-primary/20 rounded-xl p-4">
+          <PhoneCall className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Après confirmation, vous serez redirigé vers votre service Mobile Money via un code USSD pour valider le paiement.
+          </p>
         </div>
       </div>
 
-      {/* Payment method */}
-      <div className="px-4 mt-4">
-        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-2">
-          Méthode de paiement
-        </label>
-        <Select value={method} onValueChange={setMethod}>
-          <SelectTrigger
-            data-testid="select-payment-method"
-            className="h-12 bg-card border-border/60 text-foreground"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PAYMENT_METHODS.map((m) => (
-              <SelectItem key={m.value} value={m.value}>
-                {m.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Loading state */}
+      {createDeposit.isPending && (
+        <div className="flex items-center justify-center gap-2 mt-6 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          Traitement en cours...
+        </div>
+      )}
 
-      {/* Info note */}
-      <div className="px-4 mt-4">
-        <p className="text-xs text-muted-foreground bg-card border border-border/30 rounded-lg p-3">
-          Les dépôts crypto sont crédités après 3 confirmations réseau. Les virements bancaires prennent 24–48h ouvrées.
-        </p>
-      </div>
-
-      {/* Submit */}
-      <div className="px-4 mt-6 pb-6">
-        <Button
-          data-testid="button-submit-deposit"
-          className="w-full h-14 text-base font-bold bg-primary text-background hover:bg-primary/90"
-          onClick={handleSubmit}
-          disabled={createDeposit.isPending || !selectedAmount}
-        >
-          {createDeposit.isPending ? (
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          ) : null}
-          Confirmer le dépôt
-        </Button>
-      </div>
+      {/* Confirmation dialog */}
+      <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <AlertDialogContent className="bg-card border-border/60 max-w-sm mx-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground text-center text-lg">
+              Confirmer le dépôt
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-3 pt-2">
+              <span className="block text-3xl font-bold text-primary">
+                ${pendingAmount?.toLocaleString()}
+              </span>
+              <span className="block text-sm text-muted-foreground">
+                Vous allez investir{" "}
+                <strong className="text-foreground">${pendingAmount}</strong>.
+                Vous serez redirigé vers Mobile Money pour finaliser le paiement.
+              </span>
+              {pendingAmount && (
+                <span className="block font-mono text-xs bg-background/60 text-primary border border-primary/20 px-3 py-1.5 rounded-lg">
+                  Code USSD : {buildUssdCode(pendingAmount)}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <AlertDialogAction
+              data-testid="button-confirm-deposit"
+              onClick={handleConfirm}
+              className="w-full bg-primary text-background hover:bg-primary/90 font-bold h-12"
+            >
+              Confirmer
+            </AlertDialogAction>
+            <AlertDialogCancel
+              data-testid="button-cancel-deposit"
+              onClick={handleCancel}
+              className="w-full border-border/50 text-muted-foreground hover:text-foreground h-11"
+            >
+              Annuler
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
