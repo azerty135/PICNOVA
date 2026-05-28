@@ -15,6 +15,8 @@ import Deposit from "@/pages/deposit";
 import Withdraw from "@/pages/withdraw";
 import Transactions from "@/pages/transactions";
 import Profile from "@/pages/profile";
+import Equipe from "@/pages/equipe";
+import Service from "@/pages/service";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +31,8 @@ function ProtectedRoutes() {
         <Route path="/withdraw" component={Withdraw} />
         <Route path="/transactions" component={Transactions} />
         <Route path="/profile" component={Profile} />
+        <Route path="/equipe" component={Equipe} />
+        <Route path="/service" component={Service} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
