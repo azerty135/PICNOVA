@@ -1,5 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import cron from "node-cron";
+import { processDailyGains } from "./jobs/dailyGains";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +24,17 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Run daily gains every day at midnight (00:00)
+  cron.schedule("0 0 * * *", async () => {
+    logger.info("Cron: running daily gains job");
+    try {
+      const result = await processDailyGains();
+      logger.info(result, "Cron: daily gains complete");
+    } catch (err) {
+      logger.error({ err }, "Cron: daily gains job failed");
+    }
+  });
+
+  logger.info("Daily gains cron job scheduled (runs at 00:00 every day)");
 });

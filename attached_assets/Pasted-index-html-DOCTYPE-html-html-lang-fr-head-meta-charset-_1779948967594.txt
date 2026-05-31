@@ -1,0 +1,77 @@
+index.html
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HELP Invest</title>
+    <style>
+        body { font-family: sans-serif; background: #0a192f; color: white; margin: 0; padding: 20px; }
+        .deposit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-bottom: 70px; }
+        button { padding: 15px; background: #172a45; border: 1px solid #d4af37; color: white; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; justify-content: space-around; background: #0a192f; padding: 15px 0; border-top: 1px solid #d4af37; }
+        .page { display: none; }
+        .active { display: block; }
+        .header { display: flex; justify-content: space-between; padding: 10px; background: #112240; border-radius: 8px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="page-accueil" class="page active">
+        <div class="header">
+            <span id="solde">Solde: 0.00$</span>
+            <span id="phone-user">HELP V1</span>
+        </div>
+        <h2 style="text-align:center;">Choisir un investissement</h2>
+        <div class="deposit-grid" id="grid-invest"></div>
+    </div>
+
+    <div id="page-admin" class="page">
+        <h3>Zone Admin</h3>
+        <input type="tel" id="nouveau-numero" placeholder="Nouveau numéro CICO" style="width:100%; padding:10px;">
+        <button onclick="definirNumeroCICO()" style="width:100%; margin-top:10px; background: #d4af37; color:black;">Mettre à jour le numéro</button>
+    </div>
+
+    <nav class="bottom-nav">
+        <button onclick="showPage('page-accueil')">Accueil</button>
+        <button onclick="showPage('page-admin')">Admin</button>
+    </nav>
+
+    <script>
+        const montants = [50, 100, 150, 200, 300, 500, 800, 1000, 1500, 2000, 3000, 5000, 8000, 10000];
+        
+        function renderGrid() {
+            const grid = document.getElementById('grid-invest');
+            montants.forEach(m => {
+                grid.innerHTML += `<button onclick="invest(${m})">${m}$</button>`;
+            });
+        }
+
+        function invest(amount) {
+            const num = localStorage.getItem('numero_cico_actif') || "Non configuré";
+            const conf = confirm("Investissement : " + amount + "$\n\nTransférez vers : " + num + "\n\nCliquez sur OK pour copier le numéro.");
+            if (conf) {
+                navigator.clipboard.writeText(num);
+                alert("Numéro copié ! Allez sur Airtel Money.");
+            }
+        }
+
+        function definirNumeroCICO() {
+            const num = document.getElementById("nouveau-numero").value;
+            if(num.length >= 10) {
+                localStorage.setItem('numero_cico_actif', num);
+                alert("Numéro mis à jour : " + num);
+            } else {
+                alert("Entrez un numéro valide.");
+            }
+        }
+
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        renderGrid();
+    </script>
+</body>
+</html>

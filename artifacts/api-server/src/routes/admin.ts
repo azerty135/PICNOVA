@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, usersTable, withdrawalsTable, transactionsTable, investmentsTable, notificationsTable } from "@workspace/db";
 import { eq, count, sql, desc } from "drizzle-orm";
 import { SendBroadcastBody } from "@workspace/api-zod";
+import { processDailyGains } from "../jobs/dailyGains";
 
 const router = Router();
 
