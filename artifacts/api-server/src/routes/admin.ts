@@ -198,4 +198,17 @@ router.get("/notifications", async (req, res) => {
   })));
 });
 
+router.post("/trigger-gains", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
+  try {
+    const result = await processDailyGains();
+    res.json({
+      message: `Gains traités : ${result.processed} investissement(s) — $${result.totalPaid.toFixed(2)} distribués`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Erreur lors du traitement des gains" });
+  }
+});
+
 export default router;

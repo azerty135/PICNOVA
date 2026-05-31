@@ -45,6 +45,8 @@ export default function Admin() {
   const approve = useApproveWithdrawal();
   const reject = useRejectWithdrawal();
   const broadcast = useSendBroadcast();
+  const [gainResult, setGainResult] = useState<string | null>(null);
+  const [gainsLoading, setGainsLoading] = useState(false);
 
   if (!user?.isAdmin) {
     return (
@@ -77,6 +79,23 @@ export default function Admin() {
       },
       onError: () => toast({ title: "Erreur", variant: "destructive", description: "Impossible de rejeter." }),
     });
+  };
+
+  const handleTriggerGains = async () => {
+    setGainsLoading(true);
+    setGainResult(null);
+    try {
+      const res = await fetch("/api/admin/trigger-gains", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      setGainResult(data.message ?? data.error ?? "Terminé");
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
+      }
+    } catch {
+      setGainResult("Erreur réseau");
+    } finally {
+      setGainsLoading(false);
+    }
   };
 
   const handleBroadcast = () => {
@@ -169,6 +188,35 @@ export default function Admin() {
                   </Card>
                 ))}
               </div>
+
+              {/* Trigger gains card */}
+              <Card className="border-primary/20 bg-gradient-to-br from-card to-background">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-foreground text-sm">Gains journaliers</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Distribue les gains du jour à tous les investisseurs actifs. S'exécute automatiquement à minuit.
+                      </p>
+                      {gainResult && (
+                        <p className="text-xs mt-2 text-primary font-medium border border-primary/20 bg-primary/5 px-3 py-1.5 rounded-lg">
+                          {gainResult}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      data-testid="button-trigger-gains"
+                      size="sm"
+                      className="shrink-0 bg-primary text-background hover:bg-primary/90 font-bold"
+                      onClick={handleTriggerGains}
+                      disabled={gainsLoading}
+                    >
+                      {gainsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
+                      <span className="ml-1.5">Lancer</span>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Recent notifications */}
               {notifications && notifications.length > 0 && (
