@@ -56,7 +56,7 @@ export async function processDailyGains(): Promise<{ processed: number; totalPai
         userId: inv.userId,
         type: "gain",
         amount: gain.toFixed(2),
-        description: `Gain journalier — Investissement #${inv.id} (${(dailyRate * 100).toFixed(1)}%/j)`,
+        description: `Gain journalier — Investissement #${inv.id} (3%/jour)`,
         status: "completed",
       });
 

@@ -6,22 +6,7 @@ import { CreateInvestmentBody } from "@workspace/api-zod";
 const router = Router();
 
 const VALID_AMOUNTS = [50, 100, 150, 200, 300, 500, 800, 1000, 1500, 2000, 3000, 5000, 8000, 10000];
-const DAILY_RETURN_RATES: Record<number, number> = {
-  50: 0.03,
-  100: 0.03,
-  150: 0.035,
-  200: 0.035,
-  300: 0.04,
-  500: 0.04,
-  800: 0.045,
-  1000: 0.045,
-  1500: 0.05,
-  2000: 0.05,
-  3000: 0.055,
-  5000: 0.055,
-  8000: 0.06,
-  10000: 0.06,
-};
+const DAILY_RETURN_RATE = 0.03; // 3% flat for all amounts
 
 router.get("/", async (req, res) => {
   if (!req.session.userId) {
@@ -68,7 +53,7 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const dailyReturnRate = DAILY_RETURN_RATES[amount];
+  const dailyReturnRate = DAILY_RETURN_RATE;
   const durationDays = 30;
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId));
