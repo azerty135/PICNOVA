@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRegister } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
-import { Link, useSearch } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -25,9 +25,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function Register() {
   const { toast } = useToast();
   const { refreshUser } = useAuth();
-  const search = useSearch();
-  const params = new URLSearchParams(search);
-  const refCode = params.get("ref") ?? "";
+  const refCode = new URLSearchParams(window.location.search).get("ref") ?? "";
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
