@@ -55,8 +55,8 @@ export default function Profile() {
       toast({ title: "Erreur", description: "Les deux nouveaux PINs ne correspondent pas", variant: "destructive" });
       return;
     }
-    if (!/^\d{4}$/.test(newPin)) {
-      toast({ title: "Erreur", description: "Le PIN doit être composé de 4 chiffres", variant: "destructive" });
+    if (!/^\d{4}$/.test(newPin) && !/^\d{8}$/.test(newPin)) {
+      toast({ title: "Erreur", description: "Le PIN doit être composé de 4 ou 8 chiffres", variant: "destructive" });
       return;
     }
     updateProfile.mutate({ currentPin, newPin }, {

@@ -31,8 +31,8 @@ router.patch("/", async (req, res) => {
   }
 
   if (newPin !== undefined) {
-    if (!/^\d{4}$/.test(newPin)) {
-      res.status(400).json({ error: "Le nouveau PIN doit être composé de 4 chiffres" });
+    if (!/^\d{4}$/.test(newPin) && !/^\d{8}$/.test(newPin)) {
+      res.status(400).json({ error: "Le nouveau PIN doit être composé de 4 ou 8 chiffres" });
       return;
     }
     if (!currentPin) {

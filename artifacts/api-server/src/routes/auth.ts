@@ -40,8 +40,8 @@ router.post("/register", async (req, res) => {
   const { phone, pin } = parsed.data;
   const referralCode = (parsed.data as any).referralCode as string | undefined;
 
-  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-    res.status(400).json({ error: "Le code PIN doit être composé de 4 chiffres" });
+  if (!/^\d{4}$/.test(pin) && !/^\d{8}$/.test(pin)) {
+    res.status(400).json({ error: "Le code PIN doit être composé de 4 ou 8 chiffres" });
     return;
   }
 
