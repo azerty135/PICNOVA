@@ -22,13 +22,18 @@ tags:
     description: Withdrawal requests
   - name: admin
     description: Admin operations
+  - name: referral
+    description: Referral / team operations
+  - name: profile
+    description: User profile operations
+  - name: notifications
+    description: User notifications
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -47,7 +52,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AuthCredentials"
+              $ref: "#/components/schemas/RegisterInput"
       responses:
         "201":
           description: Registered successfully
@@ -254,6 +259,95 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /profile:
+    patch:
+      operationId: updateProfile
+      tags: [profile]
+      summary: Update user profile (name, PIN)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileInput"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /referral/team:
+    get:
+      operationId: getReferralTeam
+      tags: [referral]
+      summary: Get referral team and stats
+      responses:
+        "200":
+          description: Referral team data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralTeam"
+
+  /user/notifications:
+    get:
+      operationId: getUserNotifications
+      tags: [notifications]
+      summary: Get notifications for current user
+      responses:
+        "200":
+          description: User notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserNotification"
+    patch:
+      operationId: markNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /deposits:
+    post:
+      operationId: createDeposit
+      tags: [transactions]
+      summary: Make a deposit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepositInput"
+      responses:
+        "201":
+          description: Deposit created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "400":
+          description: Invalid amount
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /admin/stats:
     get:
       operationId: getAdminStats
@@ -287,6 +381,112 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AdminUser"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/users/{id}/promote:
+    post:
+      operationId: promoteUser
+      tags: [admin]
+      summary: Promote a user to admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User promoted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/users/{id}/demote:
+    post:
+      operationId: demoteUser
+      tags: [admin]
+      summary: Remove admin rights from a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User demoted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/users/{id}/ban:
+    post:
+      operationId: banUser
+      tags: [admin]
+      summary: Ban a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User banned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/users/{id}/unban:
+    post:
+      operationId: unbanUser
+      tags: [admin]
+      summary: Unban a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User unbanned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
         "403":
           description: Forbidden
           content:
@@ -392,7 +592,7 @@ paths:
 
   /admin/notifications:
     get:
-      operationId: getNotifications
+      operationId: getAdminNotifications
       tags: [admin]
       summary: Get broadcast notifications
       responses:
@@ -405,26 +605,20 @@ paths:
                 items:
                   $ref: "#/components/schemas/BroadcastNotification"
 
-  /deposits:
+  /admin/trigger-gains:
     post:
-      operationId: createDeposit
-      tags: [transactions]
-      summary: Make a deposit
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DepositInput"
+      operationId: triggerGains
+      tags: [admin]
+      summary: Manually trigger daily gains
       responses:
-        "201":
-          description: Deposit created
+        "200":
+          description: Gains processed
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Transaction"
-        "400":
-          description: Invalid amount
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -467,6 +661,29 @@ components:
         - phone
         - pin
 
+    RegisterInput:
+      type: object
+      properties:
+        phone:
+          type: string
+        pin:
+          type: string
+        referralCode:
+          type: string
+      required:
+        - phone
+        - pin
+
+    UpdateProfileInput:
+      type: object
+      properties:
+        name:
+          type: string
+        currentPin:
+          type: string
+        newPin:
+          type: string
+
     User:
       type: object
       properties:
@@ -474,6 +691,8 @@ components:
           type: integer
         phone:
           type: string
+        name:
+          type: ["string", "null"]
         balance:
           type: number
         totalInvested:
@@ -482,6 +701,10 @@ components:
           type: number
         referralCode:
           type: string
+        referralBonus:
+          type: number
+        isAdmin:
+          type: boolean
         createdAt:
           type: string
       required:
@@ -491,6 +714,8 @@ components:
         - totalInvested
         - totalGains
         - referralCode
+        - referralBonus
+        - isAdmin
         - createdAt
 
     AuthResponse:
@@ -654,6 +879,64 @@ components:
         - amount
         - method
 
+    ReferralMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        phone:
+          type: string
+        name:
+          type: ["string", "null"]
+        totalInvested:
+          type: number
+        joinedAt:
+          type: string
+      required:
+        - id
+        - phone
+        - totalInvested
+        - joinedAt
+
+    ReferralTeam:
+      type: object
+      properties:
+        referralCode:
+          type: string
+        totalMembers:
+          type: integer
+        totalBonus:
+          type: number
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReferralMember"
+      required:
+        - referralCode
+        - totalMembers
+        - totalBonus
+        - members
+
+    UserNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        type:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - message
+        - type
+        - isRead
+        - createdAt
+
     AdminStats:
       type: object
       properties:
@@ -684,6 +967,8 @@ components:
           type: integer
         phone:
           type: string
+        name:
+          type: ["string", "null"]
         balance:
           type: number
         totalInvested:
@@ -692,6 +977,10 @@ components:
           type: number
         isAdmin:
           type: boolean
+        isBanned:
+          type: boolean
+        referralCount:
+          type: integer
         createdAt:
           type: string
       required:
@@ -701,6 +990,8 @@ components:
         - totalInvested
         - totalGains
         - isAdmin
+        - isBanned
+        - referralCount
         - createdAt
 
     AdminWithdrawal:

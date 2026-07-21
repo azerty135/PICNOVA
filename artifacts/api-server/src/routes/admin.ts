@@ -66,15 +66,69 @@ router.get("/users", async (req, res) => {
     .from(usersTable)
     .orderBy(desc(usersTable.createdAt));
 
+  // Count referrals per user
+  const referralCounts = await db
+    .select({ referredBy: usersTable.referredBy, cnt: count() })
+    .from(usersTable)
+    .groupBy(usersTable.referredBy);
+
+  const countMap = new Map<number, number>();
+  for (const row of referralCounts) {
+    if (row.referredBy) countMap.set(row.referredBy, row.cnt);
+  }
+
   res.json(users.map((u) => ({
     id: u.id,
     phone: u.phone,
+    name: u.name ?? null,
     balance: parseFloat(u.balance),
     totalInvested: parseFloat(u.totalInvested),
     totalGains: parseFloat(u.totalGains),
     isAdmin: u.isAdmin,
+    isBanned: u.isBanned,
+    referralCount: countMap.get(u.id) ?? 0,
     createdAt: u.createdAt.toISOString(),
   })));
+});
+
+router.post("/users/:id/promote", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!user) { res.status(404).json({ error: "Utilisateur non trouvé" }); return; }
+  await db.update(usersTable).set({ isAdmin: true }).where(eq(usersTable.id, id));
+  res.json({ message: `${user.phone} est maintenant administrateur` });
+});
+
+router.post("/users/:id/demote", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  if (id === req.session.userId) { res.status(400).json({ error: "Vous ne pouvez pas retirer vos propres droits" }); return; }
+  await db.update(usersTable).set({ isAdmin: false }).where(eq(usersTable.id, id));
+  res.json({ message: "Droits administrateur retirés" });
+});
+
+router.post("/users/:id/ban", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  if (id === req.session.userId) { res.status(400).json({ error: "Vous ne pouvez pas vous bannir vous-même" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!user) { res.status(404).json({ error: "Utilisateur non trouvé" }); return; }
+  await db.update(usersTable).set({ isBanned: true }).where(eq(usersTable.id, id));
+  res.json({ message: `${user.phone} a été suspendu` });
+});
+
+router.post("/users/:id/unban", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!user) { res.status(404).json({ error: "Utilisateur non trouvé" }); return; }
+  await db.update(usersTable).set({ isBanned: false }).where(eq(usersTable.id, id));
+  res.json({ message: `${user.phone} a été réactivé` });
 });
 
 router.get("/withdrawals", async (req, res) => {
@@ -111,102 +165,56 @@ router.get("/withdrawals", async (req, res) => {
 
 router.post("/withdrawals/:id/approve", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
-
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
-
   const [withdrawal] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, id));
   if (!withdrawal) { res.status(404).json({ error: "Retrait non trouvé" }); return; }
   if (withdrawal.status !== "pending") { res.status(400).json({ error: "Ce retrait n'est plus en attente" }); return; }
-
-  await db.update(withdrawalsTable).set({
-    status: "approved",
-    processedAt: new Date(),
-  }).where(eq(withdrawalsTable.id, id));
-
+  await db.update(withdrawalsTable).set({ status: "approved", processedAt: new Date() }).where(eq(withdrawalsTable.id, id));
   await db.update(transactionsTable).set({ status: "completed" })
-    .where(
-      sql`${transactionsTable.userId} = ${withdrawal.userId}
-        AND ${transactionsTable.type} = 'withdrawal'
-        AND ${transactionsTable.amount} = ${withdrawal.amount}
-        AND ${transactionsTable.status} = 'pending'`
-    );
-
+    .where(sql`${transactionsTable.userId} = ${withdrawal.userId} AND ${transactionsTable.type} = 'withdrawal' AND ${transactionsTable.amount} = ${withdrawal.amount} AND ${transactionsTable.status} = 'pending'`);
   res.json({ message: "Retrait approuvé avec succès" });
 });
 
 router.post("/withdrawals/:id/reject", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
-
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
-
   const [withdrawal] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, id));
   if (!withdrawal) { res.status(404).json({ error: "Retrait non trouvé" }); return; }
   if (withdrawal.status !== "pending") { res.status(400).json({ error: "Ce retrait n'est plus en attente" }); return; }
-
-  await db.update(withdrawalsTable).set({
-    status: "rejected",
-    processedAt: new Date(),
-  }).where(eq(withdrawalsTable.id, id));
-
+  await db.update(withdrawalsTable).set({ status: "rejected", processedAt: new Date() }).where(eq(withdrawalsTable.id, id));
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, withdrawal.userId));
   if (user) {
-    const refundedBalance = parseFloat(user.balance) + parseFloat(withdrawal.amount);
-    await db.update(usersTable).set({ balance: refundedBalance.toString() }).where(eq(usersTable.id, withdrawal.userId));
-    await db.insert(transactionsTable).values({
-      userId: withdrawal.userId,
-      type: "deposit",
-      amount: withdrawal.amount,
-      description: "Remboursement — retrait rejeté",
-      status: "completed",
-    });
+    await db.update(usersTable).set({ balance: (parseFloat(user.balance) + parseFloat(withdrawal.amount)).toString() }).where(eq(usersTable.id, withdrawal.userId));
+    await db.insert(transactionsTable).values({ userId: withdrawal.userId, type: "deposit", amount: withdrawal.amount, description: "Remboursement — retrait rejeté", status: "completed" });
   }
-
   res.json({ message: "Retrait rejeté et montant remboursé" });
 });
 
 router.post("/broadcast", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
-
   const parsed = SendBroadcastBody.safeParse(req.body);
   if (!parsed.success || !parsed.data.message.trim()) {
     res.status(400).json({ error: "Message requis" });
     return;
   }
-
-  const [notification] = await db.insert(notificationsTable).values({
-    message: parsed.data.message.trim(),
-  }).returning();
-
+  const [notification] = await db.insert(notificationsTable).values({ message: parsed.data.message.trim() }).returning();
   res.status(201).json({ message: `Message diffusé avec succès (ID: ${notification.id})` });
 });
 
 router.get("/notifications", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
-
-  const notifications = await db
-    .select()
-    .from(notificationsTable)
-    .orderBy(desc(notificationsTable.sentAt))
-    .limit(20);
-
-  res.json(notifications.map((n) => ({
-    id: n.id,
-    message: n.message,
-    sentAt: n.sentAt.toISOString(),
-  })));
+  const notifications = await db.select().from(notificationsTable).orderBy(desc(notificationsTable.sentAt)).limit(20);
+  res.json(notifications.map((n) => ({ id: n.id, message: n.message, sentAt: n.sentAt.toISOString() })));
 });
 
 router.post("/trigger-gains", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
-
   try {
     const result = await processDailyGains();
-    res.json({
-      message: `Gains traités : ${result.processed} investissement(s) — $${result.totalPaid.toFixed(2)} distribués`,
-    });
-  } catch (err) {
+    res.json({ message: `Gains traités : ${result.processed} investissement(s) — $${result.totalPaid.toFixed(2)} distribués` });
+  } catch {
     res.status(500).json({ error: "Erreur lors du traitement des gains" });
   }
 });

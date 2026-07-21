@@ -7,6 +7,9 @@ import transactionsRouter from "./transactions";
 import withdrawalsRouter from "./withdrawals";
 import depositsRouter from "./deposits";
 import adminRouter from "./admin";
+import profileRouter from "./profile";
+import referralRouter from "./referral";
+import userNotificationsRouter from "./userNotifications";
 
 const router: IRouter = Router();
 
@@ -18,5 +21,8 @@ router.use("/transactions", transactionsRouter);
 router.use("/withdrawals", withdrawalsRouter);
 router.use("/deposits", depositsRouter);
 router.use("/admin", adminRouter);
+router.use("/profile", profileRouter);
+router.use("/referral", referralRouter);
+router.use("/user/notifications", userNotificationsRouter);
 
 export default router;

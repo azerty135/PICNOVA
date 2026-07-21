@@ -1,12 +1,15 @@
 import { useAuth } from "@/lib/auth";
+import { useGetReferralTeam } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Copy, Gift, TrendingUp } from "lucide-react";
+import { Users, Copy, Gift, TrendingUp, Phone, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency, formatDate } from "@/lib/format";
 
 export default function Equipe() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { data: team, isLoading } = useGetReferralTeam();
 
   const referralLink = user
     ? `${window.location.origin}/register?ref=${user.referralCode}`
@@ -69,6 +72,30 @@ export default function Equipe() {
         </CardContent>
       </Card>
 
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="border-border/50">
+          <CardContent className="p-4 text-center">
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-primary mx-auto" />
+            ) : (
+              <p className="text-2xl font-bold text-primary">{team?.totalMembers ?? 0}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Membres parrainés</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="p-4 text-center">
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-primary mx-auto" />
+            ) : (
+              <p className="text-2xl font-bold text-primary">{formatCurrency(team?.totalBonus ?? 0)}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">Bonus de parrainage</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* How it works */}
       <Card className="border-border/50">
         <CardHeader className="pb-3">
@@ -96,27 +123,47 @@ export default function Equipe() {
         </CardContent>
       </Card>
 
-      {/* Team stats placeholder */}
-      <Card className="border-border/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Users className="w-4 h-4 text-primary" />
-            Statistiques
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-background/50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-primary">0</p>
-              <p className="text-xs text-muted-foreground mt-1">Membres parrainés</p>
-            </div>
-            <div className="bg-background/50 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-primary">$0.00</p>
-              <p className="text-xs text-muted-foreground mt-1">Gains de parrainage</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Members list */}
+      {!isLoading && team && team.members.length > 0 && (
+        <Card className="border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Mes filleuls ({team.members.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {team.members.map((member) => (
+              <div key={member.id} className="flex items-center justify-between py-2 border-b border-border/20 last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Phone className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{member.name ?? member.phone}</p>
+                    {member.name && <p className="text-xs text-muted-foreground">{member.phone}</p>}
+                    <p className="text-xs text-muted-foreground">Inscrit le {formatDate(member.joinedAt)}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Investi</p>
+                  <p className="text-sm font-semibold text-primary">{formatCurrency(member.totalInvested)}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && team && team.members.length === 0 && (
+        <Card className="border-dashed border-border/40">
+          <CardContent className="p-8 text-center">
+            <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">Vous n'avez pas encore de filleuls.</p>
+            <p className="text-xs text-muted-foreground mt-1">Partagez votre code pour commencer !</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

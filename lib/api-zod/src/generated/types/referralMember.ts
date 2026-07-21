@@ -6,16 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface User {
+export interface ReferralMember {
   id: number;
   phone: string;
   /** @nullable */
   name?: string | null;
-  balance: number;
   totalInvested: number;
-  totalGains: number;
-  referralCode: string;
-  referralBonus: number;
-  isAdmin: boolean;
-  createdAt: string;
+  joinedAt: string;
 }

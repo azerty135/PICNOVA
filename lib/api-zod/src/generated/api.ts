@@ -9,7 +9,6 @@ import * as zod from 'zod';
 
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -22,7 +21,8 @@ export const HealthCheckResponse = zod.object({
  */
 export const RegisterBody = zod.object({
   "phone": zod.string(),
-  "pin": zod.string()
+  "pin": zod.string(),
+  "referralCode": zod.string().optional()
 })
 
 
@@ -38,10 +38,13 @@ export const LoginResponse = zod.object({
   "user": zod.object({
   "id": zod.number(),
   "phone": zod.string(),
+  "name": zod.string().nullish(),
   "balance": zod.number(),
   "totalInvested": zod.number(),
   "totalGains": zod.number(),
   "referralCode": zod.string(),
+  "referralBonus": zod.number(),
+  "isAdmin": zod.boolean(),
   "createdAt": zod.string()
 }),
   "message": zod.string()
@@ -62,10 +65,13 @@ export const LogoutResponse = zod.object({
 export const GetMeResponse = zod.object({
   "id": zod.number(),
   "phone": zod.string(),
+  "name": zod.string().nullish(),
   "balance": zod.number(),
   "totalInvested": zod.number(),
   "totalGains": zod.number(),
   "referralCode": zod.string(),
+  "referralBonus": zod.number(),
+  "isAdmin": zod.boolean(),
   "createdAt": zod.string()
 })
 
@@ -180,6 +186,76 @@ export const CreateWithdrawalBody = zod.object({
 
 
 /**
+ * @summary Update user profile (name, PIN)
+ */
+export const UpdateProfileBody = zod.object({
+  "name": zod.string().optional(),
+  "currentPin": zod.string().optional(),
+  "newPin": zod.string().optional()
+})
+
+export const UpdateProfileResponse = zod.object({
+  "id": zod.number(),
+  "phone": zod.string(),
+  "name": zod.string().nullish(),
+  "balance": zod.number(),
+  "totalInvested": zod.number(),
+  "totalGains": zod.number(),
+  "referralCode": zod.string(),
+  "referralBonus": zod.number(),
+  "isAdmin": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Get referral team and stats
+ */
+export const GetReferralTeamResponse = zod.object({
+  "referralCode": zod.string(),
+  "totalMembers": zod.number(),
+  "totalBonus": zod.number(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "phone": zod.string(),
+  "name": zod.string().nullish(),
+  "totalInvested": zod.number(),
+  "joinedAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Get notifications for current user
+ */
+export const GetUserNotificationsResponseItem = zod.object({
+  "id": zod.number(),
+  "message": zod.string(),
+  "type": zod.string(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const GetUserNotificationsResponse = zod.array(GetUserNotificationsResponseItem)
+
+
+/**
+ * @summary Mark all notifications as read
+ */
+export const MarkNotificationsReadResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Make a deposit
+ */
+export const CreateDepositBody = zod.object({
+  "amount": zod.number(),
+  "method": zod.string()
+})
+
+
+/**
  * @summary Get platform statistics
  */
 export const GetAdminStatsResponse = zod.object({
@@ -198,13 +274,64 @@ export const GetAdminStatsResponse = zod.object({
 export const GetAdminUsersResponseItem = zod.object({
   "id": zod.number(),
   "phone": zod.string(),
+  "name": zod.string().nullish(),
   "balance": zod.number(),
   "totalInvested": zod.number(),
   "totalGains": zod.number(),
   "isAdmin": zod.boolean(),
+  "isBanned": zod.boolean(),
+  "referralCount": zod.number(),
   "createdAt": zod.string()
 })
 export const GetAdminUsersResponse = zod.array(GetAdminUsersResponseItem)
+
+
+/**
+ * @summary Promote a user to admin
+ */
+export const PromoteUserParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PromoteUserResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Remove admin rights from a user
+ */
+export const DemoteUserParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DemoteUserResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Ban a user
+ */
+export const BanUserParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const BanUserResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Unban a user
+ */
+export const UnbanUserParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UnbanUserResponse = zod.object({
+  "message": zod.string()
+})
 
 
 /**
@@ -259,20 +386,19 @@ export const SendBroadcastBody = zod.object({
 /**
  * @summary Get broadcast notifications
  */
-export const GetNotificationsResponseItem = zod.object({
+export const GetAdminNotificationsResponseItem = zod.object({
   "id": zod.number(),
   "message": zod.string(),
   "sentAt": zod.string()
 })
-export const GetNotificationsResponse = zod.array(GetNotificationsResponseItem)
+export const GetAdminNotificationsResponse = zod.array(GetAdminNotificationsResponseItem)
 
 
 /**
- * @summary Make a deposit
+ * @summary Manually trigger daily gains
  */
-export const CreateDepositBody = zod.object({
-  "amount": zod.number(),
-  "method": zod.string()
+export const TriggerGainsResponse = zod.object({
+  "message": zod.string()
 })
 
 

@@ -4,20 +4,28 @@ import {
   useGetAdminStats,
   useGetAdminWithdrawals,
   useGetAdminUsers,
-  useGetNotifications,
+  useGetAdminNotifications,
   useApproveWithdrawal,
   useRejectWithdrawal,
   useSendBroadcast,
+  usePromoteUser,
+  useDemoteUser,
+  useBanUser,
+  useUnbanUser,
   getGetAdminStatsQueryKey,
   getGetAdminWithdrawalsQueryKey,
-  getGetNotificationsQueryKey,
+  getGetAdminNotificationsQueryKey,
+  getGetAdminUsersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Users, Wallet, TrendingUp, ArrowUpRight, CheckCircle, XCircle, Send, Bell, BarChart3, ShieldAlert } from "lucide-react";
+import {
+  Loader2, Users, Wallet, TrendingUp, ArrowUpRight, CheckCircle, XCircle,
+  Send, Bell, BarChart3, ShieldAlert, ShieldCheck, Shield, Ban, UserCheck,
+} from "lucide-react";
 import { useLocation } from "wouter";
 
 function formatCurrency(n: number) {
@@ -25,7 +33,9 @@ function formatCurrency(n: number) {
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
 }
 
 export default function Admin() {
@@ -36,17 +46,21 @@ export default function Admin() {
 
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [activeTab, setActiveTab] = useState<"stats" | "withdrawals" | "users" | "broadcast">("stats");
+  const [gainResult, setGainResult] = useState<string | null>(null);
+  const [gainsLoading, setGainsLoading] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: withdrawals, isLoading: wLoading } = useGetAdminWithdrawals();
   const { data: users, isLoading: uLoading } = useGetAdminUsers();
-  const { data: notifications } = useGetNotifications();
+  const { data: notifications } = useGetAdminNotifications();
 
   const approve = useApproveWithdrawal();
   const reject = useRejectWithdrawal();
   const broadcast = useSendBroadcast();
-  const [gainResult, setGainResult] = useState<string | null>(null);
-  const [gainsLoading, setGainsLoading] = useState(false);
+  const promote = usePromoteUser();
+  const demote = useDemoteUser();
+  const ban = useBanUser();
+  const unban = useUnbanUser();
 
   if (!user?.isAdmin) {
     return (
@@ -59,12 +73,15 @@ export default function Admin() {
     );
   }
 
+  const invalidateUsers = () => queryClient.invalidateQueries({ queryKey: getGetAdminUsersQueryKey() });
+  const invalidateStats = () => queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
+
   const handleApprove = (id: number) => {
     approve.mutate({ id }, {
       onSuccess: () => {
         toast({ title: "Retrait approuvé", description: "Le paiement a été validé." });
         queryClient.invalidateQueries({ queryKey: getGetAdminWithdrawalsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
+        invalidateStats();
       },
       onError: () => toast({ title: "Erreur", variant: "destructive", description: "Impossible d'approuver." }),
     });
@@ -73,11 +90,52 @@ export default function Admin() {
   const handleReject = (id: number) => {
     reject.mutate({ id }, {
       onSuccess: () => {
-        toast({ title: "Retrait rejeté", description: "Le montant a été remboursé à l'utilisateur." });
+        toast({ title: "Retrait rejeté", description: "Le montant a été remboursé." });
         queryClient.invalidateQueries({ queryKey: getGetAdminWithdrawalsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
+        invalidateStats();
       },
       onError: () => toast({ title: "Erreur", variant: "destructive", description: "Impossible de rejeter." }),
+    });
+  };
+
+  const handlePromote = (id: number) => {
+    promote.mutate({ id }, {
+      onSuccess: (data) => {
+        toast({ title: "Promu !", description: data.message });
+        invalidateUsers();
+      },
+      onError: () => toast({ title: "Erreur", variant: "destructive" }),
+    });
+  };
+
+  const handleDemote = (id: number) => {
+    demote.mutate({ id }, {
+      onSuccess: () => {
+        toast({ title: "Droits retirés" });
+        invalidateUsers();
+      },
+      onError: () => toast({ title: "Erreur", variant: "destructive" }),
+    });
+  };
+
+  const handleBan = (id: number) => {
+    ban.mutate({ id }, {
+      onSuccess: (data) => {
+        toast({ title: "Compte suspendu", description: data.message });
+        invalidateUsers();
+        invalidateStats();
+      },
+      onError: () => toast({ title: "Erreur", variant: "destructive" }),
+    });
+  };
+
+  const handleUnban = (id: number) => {
+    unban.mutate({ id }, {
+      onSuccess: (data) => {
+        toast({ title: "Compte réactivé", description: data.message });
+        invalidateUsers();
+      },
+      onError: () => toast({ title: "Erreur", variant: "destructive" }),
     });
   };
 
@@ -88,9 +146,7 @@ export default function Admin() {
       const res = await fetch("/api/admin/trigger-gains", { method: "POST", credentials: "include" });
       const data = await res.json();
       setGainResult(data.message ?? data.error ?? "Terminé");
-      if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
-      }
+      if (res.ok) invalidateStats();
     } catch {
       setGainResult("Erreur réseau");
     } finally {
@@ -104,7 +160,7 @@ export default function Admin() {
       onSuccess: () => {
         toast({ title: "Message diffusé", description: "Tous les utilisateurs ont été notifiés." });
         setBroadcastMsg("");
-        queryClient.invalidateQueries({ queryKey: getGetNotificationsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetAdminNotificationsQueryKey() });
       },
       onError: () => toast({ title: "Erreur", variant: "destructive", description: "Impossible d'envoyer." }),
     });
@@ -189,14 +245,14 @@ export default function Admin() {
                 ))}
               </div>
 
-              {/* Trigger gains card */}
+              {/* Trigger gains */}
               <Card className="border-primary/20 bg-gradient-to-br from-card to-background">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-semibold text-foreground text-sm">Gains journaliers</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Distribue les gains du jour à tous les investisseurs actifs. S'exécute automatiquement à minuit.
+                        Distribue les gains du jour (3%/j) à tous les investisseurs actifs. S'exécute automatiquement à minuit.
                       </p>
                       {gainResult && (
                         <p className="text-xs mt-2 text-primary font-medium border border-primary/20 bg-primary/5 px-3 py-1.5 rounded-lg">
@@ -218,9 +274,9 @@ export default function Admin() {
                 </CardContent>
               </Card>
 
-              {/* Recent notifications */}
+              {/* Recent broadcasts */}
               {notifications && notifications.length > 0 && (
-                <Card className="border-border/50 mt-4">
+                <Card className="border-border/50">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
                       <Bell className="w-4 h-4 text-primary" /> Derniers messages diffusés
@@ -250,7 +306,11 @@ export default function Admin() {
                 <div className="text-center py-12 text-muted-foreground text-sm">Aucune demande de retrait.</div>
               )}
               {withdrawals?.map((w) => (
-                <Card key={w.id} className={`border-border/50 ${w.status === "pending" ? "border-l-4 border-l-yellow-500" : w.status === "approved" ? "border-l-4 border-l-green-500" : "border-l-4 border-l-red-500"}`}>
+                <Card key={w.id} className={`border-border/50 ${
+                  w.status === "pending" ? "border-l-4 border-l-yellow-500" :
+                  w.status === "approved" ? "border-l-4 border-l-green-500" :
+                  "border-l-4 border-l-red-500"
+                }`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -307,22 +367,82 @@ export default function Admin() {
                 <div className="text-center py-12 text-muted-foreground text-sm">Aucun utilisateur.</div>
               )}
               {users?.map((u) => (
-                <Card key={u.id} className="border-border/50">
+                <Card key={u.id} className={`border-border/50 ${u.isBanned ? "opacity-60 border-l-4 border-l-red-500" : ""}`}>
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p data-testid={`text-user-${u.id}`} className="font-medium text-sm text-foreground">{u.phone}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p data-testid={`text-user-${u.id}`} className="font-medium text-sm text-foreground">
+                            {u.name ?? u.phone}
+                          </p>
                           {u.isAdmin && (
-                            <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Admin</span>
+                            <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wide flex items-center gap-0.5">
+                              <ShieldCheck className="w-2.5 h-2.5" /> Admin
+                            </span>
+                          )}
+                          {u.isBanned && (
+                            <span className="text-[9px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                              Suspendu
+                            </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">Inscrit le {formatDate(u.createdAt)}</p>
+                        {u.name && <p className="text-xs text-muted-foreground">{u.phone}</p>}
+                        <p className="text-xs text-muted-foreground">
+                          Inscrit le {formatDate(u.createdAt)} · {u.referralCount} filleul{u.referralCount !== 1 ? "s" : ""}
+                        </p>
+                        <div className="flex gap-3 mt-1">
+                          <p className="text-xs font-semibold text-primary">{formatCurrency(u.balance)}</p>
+                          <p className="text-xs text-muted-foreground">Investi: {formatCurrency(u.totalInvested)}</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-primary">{formatCurrency(u.balance)}</p>
-                        <p className="text-[10px] text-muted-foreground">Investi: {formatCurrency(u.totalInvested)}</p>
-                      </div>
+
+                      {/* Actions — hide for self */}
+                      {u.id !== user.id && (
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                          {u.isBanned ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2.5 text-xs border-green-500/30 text-green-400 hover:bg-green-500/10 gap-1"
+                              onClick={() => handleUnban(u.id)}
+                              disabled={unban.isPending}
+                            >
+                              <UserCheck className="w-3 h-3" /> Réactiver
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2.5 text-xs border-red-500/30 text-red-400 hover:bg-red-500/10 gap-1"
+                              onClick={() => handleBan(u.id)}
+                              disabled={ban.isPending}
+                            >
+                              <Ban className="w-3 h-3" /> Suspendre
+                            </Button>
+                          )}
+                          {u.isAdmin ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2.5 text-xs border-muted text-muted-foreground hover:bg-muted/20 gap-1"
+                              onClick={() => handleDemote(u.id)}
+                              disabled={demote.isPending}
+                            >
+                              <Shield className="w-3 h-3" /> Retirer admin
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2.5 text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1"
+                              onClick={() => handlePromote(u.id)}
+                              disabled={promote.isPending}
+                            >
+                              <ShieldCheck className="w-3 h-3" /> Promouvoir
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

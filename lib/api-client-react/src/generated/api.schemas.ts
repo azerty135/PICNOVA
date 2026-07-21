@@ -22,13 +22,29 @@ export interface AuthCredentials {
   pin: string;
 }
 
+export interface RegisterInput {
+  phone: string;
+  pin: string;
+  referralCode?: string;
+}
+
+export interface UpdateProfileInput {
+  name?: string;
+  currentPin?: string;
+  newPin?: string;
+}
+
 export interface User {
   id: number;
   phone: string;
+  /** @nullable */
+  name?: string | null;
   balance: number;
   totalInvested: number;
   totalGains: number;
   referralCode: string;
+  referralBonus: number;
+  isAdmin: boolean;
   createdAt: string;
 }
 
@@ -134,6 +150,30 @@ export interface DepositInput {
   method: string;
 }
 
+export interface ReferralMember {
+  id: number;
+  phone: string;
+  /** @nullable */
+  name?: string | null;
+  totalInvested: number;
+  joinedAt: string;
+}
+
+export interface ReferralTeam {
+  referralCode: string;
+  totalMembers: number;
+  totalBonus: number;
+  members: ReferralMember[];
+}
+
+export interface UserNotification {
+  id: number;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 export interface AdminStats {
   totalUsers: number;
   totalDeposited: number;
@@ -146,10 +186,14 @@ export interface AdminStats {
 export interface AdminUser {
   id: number;
   phone: string;
+  /** @nullable */
+  name?: string | null;
   balance: number;
   totalInvested: number;
   totalGains: number;
   isAdmin: boolean;
+  isBanned: boolean;
+  referralCount: number;
   createdAt: string;
 }
 

@@ -16,6 +16,21 @@ declare module "express-session" {
   }
 }
 
+function serializeUser(user: typeof usersTable.$inferSelect) {
+  return {
+    id: user.id,
+    phone: user.phone,
+    name: user.name ?? null,
+    balance: parseFloat(user.balance),
+    totalInvested: parseFloat(user.totalInvested),
+    totalGains: parseFloat(user.totalGains),
+    referralCode: user.referralCode,
+    referralBonus: parseFloat(user.referralBonus ?? "0"),
+    isAdmin: user.isAdmin,
+    createdAt: user.createdAt.toISOString(),
+  };
+}
+
 router.post("/register", async (req, res) => {
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
@@ -23,6 +38,7 @@ router.post("/register", async (req, res) => {
     return;
   }
   const { phone, pin } = parsed.data;
+  const referralCode = (parsed.data as any).referralCode as string | undefined;
 
   if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
     res.status(400).json({ error: "Le code PIN doit être composé de 4 chiffres" });
@@ -35,8 +51,15 @@ router.post("/register", async (req, res) => {
     return;
   }
 
+  // Resolve referrer
+  let referredById: number | undefined;
+  if (referralCode) {
+    const [referrer] = await db.select().from(usersTable).where(eq(usersTable.referralCode, referralCode.toUpperCase()));
+    if (referrer) referredById = referrer.id;
+  }
+
   const hashedPin = await bcrypt.hash(pin, 10);
-  const referralCode = generateReferralCode();
+  const newReferralCode = generateReferralCode();
 
   const [user] = await db.insert(usersTable).values({
     phone,
@@ -44,21 +67,15 @@ router.post("/register", async (req, res) => {
     balance: "0",
     totalInvested: "0",
     totalGains: "0",
-    referralCode,
+    referralCode: newReferralCode,
+    referredBy: referredById,
+    referralBonus: "0",
   }).returning();
 
   req.session.userId = user.id;
 
   res.status(201).json({
-    user: {
-      id: user.id,
-      phone: user.phone,
-      balance: parseFloat(user.balance),
-      totalInvested: parseFloat(user.totalInvested),
-      totalGains: parseFloat(user.totalGains),
-      referralCode: user.referralCode,
-      createdAt: user.createdAt.toISOString(),
-    },
+    user: serializeUser(user),
     message: "Compte créé avec succès",
   });
 });
@@ -77,6 +94,11 @@ router.post("/login", async (req, res) => {
     return;
   }
 
+  if (user.isBanned) {
+    res.status(403).json({ error: "Ce compte a été suspendu. Contactez le support." });
+    return;
+  }
+
   const valid = await bcrypt.compare(pin, user.pin);
   if (!valid) {
     res.status(401).json({ error: "Numéro de téléphone ou code PIN incorrect" });
@@ -86,15 +108,7 @@ router.post("/login", async (req, res) => {
   req.session.userId = user.id;
 
   res.json({
-    user: {
-      id: user.id,
-      phone: user.phone,
-      balance: parseFloat(user.balance),
-      totalInvested: parseFloat(user.totalInvested),
-      totalGains: parseFloat(user.totalGains),
-      referralCode: user.referralCode,
-      createdAt: user.createdAt.toISOString(),
-    },
+    user: serializeUser(user),
     message: "Connexion réussie",
   });
 });
@@ -117,15 +131,7 @@ router.get("/me", async (req, res) => {
     return;
   }
 
-  res.json({
-    id: user.id,
-    phone: user.phone,
-    balance: parseFloat(user.balance),
-    totalInvested: parseFloat(user.totalInvested),
-    totalGains: parseFloat(user.totalGains),
-    referralCode: user.referralCode,
-    createdAt: user.createdAt.toISOString(),
-  });
+  res.json(serializeUser(user));
 });
 
 export default router;

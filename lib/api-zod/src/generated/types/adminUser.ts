@@ -9,9 +9,13 @@
 export interface AdminUser {
   id: number;
   phone: string;
+  /** @nullable */
+  name?: string | null;
   balance: number;
   totalInvested: number;
   totalGains: number;
   isAdmin: boolean;
+  isBanned: boolean;
+  referralCount: number;
   createdAt: string;
 }
