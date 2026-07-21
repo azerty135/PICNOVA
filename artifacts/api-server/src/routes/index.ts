@@ -10,6 +10,7 @@ import adminRouter from "./admin";
 import profileRouter from "./profile";
 import referralRouter from "./referral";
 import userNotificationsRouter from "./userNotifications";
+import settingsRouter from "./settingsRoute";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use("/admin", adminRouter);
 router.use("/profile", profileRouter);
 router.use("/referral", referralRouter);
 router.use("/user/notifications", userNotificationsRouter);
+router.use("/settings", settingsRouter);
 
 export default router;

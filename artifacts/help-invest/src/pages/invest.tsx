@@ -11,6 +11,13 @@ const INVESTMENT_AMOUNTS = [
   50, 100, 150, 200, 300, 500, 800, 1000, 1500, 2000, 3000, 5000, 8000, 10000
 ];
 
+const DAILY_RATE = 0.03;
+const DAYS = 30;
+
+function gains30d(amount: number): string {
+  return formatCurrency(amount * DAILY_RATE * DAYS);
+}
+
 export default function Invest() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const { toast } = useToast();
@@ -42,14 +49,14 @@ export default function Invest() {
     <div className="p-4 md:p-8 space-y-6">
       <header className="mb-6">
         <h1 className="text-2xl font-serif font-bold text-foreground">Investir</h1>
-        <p className="text-muted-foreground text-sm">Sélectionnez un plan fixe pour commencer.</p>
+        <p className="text-muted-foreground text-sm">Sélectionnez un montant — 3%/jour pendant 30 jours.</p>
       </header>
 
       <Card className="bg-card border-border/50">
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-6 text-primary">
             <ShieldCheck className="w-5 h-5" />
-            <span className="font-medium text-sm uppercase tracking-wide">Fonds Garantis</span>
+            <span className="font-medium text-sm uppercase tracking-wide">Fonds Garantis · 3%/jour · 30 jours</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-8">
@@ -57,30 +64,39 @@ export default function Invest() {
               <button
                 key={amount}
                 onClick={() => setSelectedAmount(amount)}
-                className={`p-4 rounded-xl border transition-all duration-200 text-center font-medium ${
-                  selectedAmount === amount 
-                    ? "bg-primary/10 border-primary text-primary shadow-[0_0_15px_rgba(212,175,55,0.15)]" 
+                className={`p-3 rounded-xl border transition-all duration-200 text-center flex flex-col items-center gap-1 ${
+                  selectedAmount === amount
+                    ? "bg-primary/10 border-primary text-primary shadow-[0_0_15px_rgba(212,175,55,0.15)]"
                     : "bg-background border-border/50 text-foreground hover:border-primary/50"
                 }`}
               >
-                {formatCurrency(amount)}
+                <span className="font-bold text-sm">{formatCurrency(amount)}</span>
+                <span className={`text-[10px] font-medium ${selectedAmount === amount ? "text-primary" : "text-green-400"}`}>
+                  +{gains30d(amount)} / 30j
+                </span>
               </button>
             ))}
           </div>
 
-          <div className="bg-background/50 rounded-lg p-4 mb-6 border border-border/30 text-sm space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Rendement journalier</span>
-              <span className="font-medium text-primary">~1.2% - 2.5%</span>
+          {selectedAmount && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-5 text-sm space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Montant investi</span>
+                <span className="font-bold text-foreground">{formatCurrency(selectedAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Gain/jour (3%)</span>
+                <span className="font-medium text-primary">+{formatCurrency(selectedAmount * DAILY_RATE)}</span>
+              </div>
+              <div className="flex justify-between border-t border-border/30 pt-1.5">
+                <span className="text-muted-foreground font-semibold">Total en 30 jours</span>
+                <span className="font-bold text-green-400">+{gains30d(selectedAmount)}</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Durée d'engagement</span>
-              <span className="font-medium">30 jours</span>
-            </div>
-          </div>
+          )}
 
-          <Button 
-            className="w-full font-bold text-lg h-14" 
+          <Button
+            className="w-full font-bold text-lg h-14"
             size="lg"
             disabled={!selectedAmount || createInvestment.isPending}
             onClick={handleInvest}

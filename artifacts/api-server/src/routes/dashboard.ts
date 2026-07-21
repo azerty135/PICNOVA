@@ -40,6 +40,7 @@ router.get("/summary", async (req, res) => {
     balance: parseFloat(user.balance),
     totalInvested: parseFloat(user.totalInvested),
     totalGains: parseFloat(user.totalGains),
+    referralBonus: parseFloat(user.referralBonus ?? "0"),
     activeInvestments: activeInvestmentsResult.count,
     pendingWithdrawals: parseFloat(pendingWithdrawalsResult.total ?? "0"),
     recentTransactions: recentTransactions.map((t) => ({

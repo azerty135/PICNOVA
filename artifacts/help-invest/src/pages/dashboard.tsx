@@ -1,9 +1,9 @@
 import { useGetDashboardSummary } from "@workspace/api-client-react";
 import { formatCurrency, formatDateOnly } from "@/lib/format";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { ArrowDownLeft, ArrowUpRight, Plus, Activity, Wallet, TrendingUp } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Activity, Wallet, TrendingUp, Gift } from "lucide-react";
 
 export default function Dashboard() {
   const { data: summary, isLoading, isError } = useGetDashboardSummary();
@@ -25,6 +25,16 @@ export default function Dashboard() {
     return <div className="p-6 text-destructive">Erreur lors du chargement des données.</div>;
   }
 
+  // Main displayable balance = daily gains + referral bonuses (what you've EARNED)
+  const earnings = (summary as any).totalGains + ((summary as any).referralBonus ?? 0);
+
+  const txLabel: Record<string, string> = {
+    deposit: "Dépôt",
+    withdrawal: "Retrait",
+    gain: "Gain",
+    investment: "Investissement",
+  };
+
   return (
     <div className="p-4 md:p-8 space-y-6">
       <header className="mb-8">
@@ -32,15 +42,18 @@ export default function Dashboard() {
         <p className="text-muted-foreground text-sm">Bienvenue sur votre espace privé.</p>
       </header>
 
-      {/* Main Balance Card */}
+      {/* Main Earnings Card */}
       <Card className="bg-gradient-to-br from-card to-background border-primary/20 shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
           <Wallet className="w-32 h-32" />
         </div>
         <CardContent className="p-6">
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-2">Solde total</p>
-          <h2 className="text-4xl font-bold text-white mb-6">{formatCurrency(summary.balance)}</h2>
-          
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Gains disponibles</p>
+          <h2 className="text-4xl font-bold text-white mb-1">{formatCurrency(earnings)}</h2>
+          <p className="text-xs text-muted-foreground mb-5">
+            Gains journaliers + bonus de parrainage
+          </p>
+
           <div className="flex gap-3">
             <Link href="/deposit" className="flex-1">
               <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
@@ -57,24 +70,34 @@ export default function Dashboard() {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <Card className="border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
               <Activity className="w-4 h-4" />
-              <span className="text-xs uppercase tracking-wider font-medium">Investi</span>
+              <span className="text-[10px] uppercase tracking-wider font-medium">Investi</span>
             </div>
-            <p className="text-xl font-semibold text-white">{formatCurrency(summary.totalInvested)}</p>
+            <p className="text-lg font-semibold text-white">{formatCurrency(summary.totalInvested)}</p>
           </CardContent>
         </Card>
-        
+
         <Card className="border-border/50">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
               <TrendingUp className="w-4 h-4 text-primary" />
-              <span className="text-xs uppercase tracking-wider font-medium">Gains</span>
+              <span className="text-[10px] uppercase tracking-wider font-medium">Gains</span>
             </div>
-            <p className="text-xl font-semibold text-primary">{formatCurrency(summary.totalGains)}</p>
+            <p className="text-lg font-semibold text-primary">{formatCurrency(summary.totalGains)}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
+              <Gift className="w-4 h-4 text-yellow-400" />
+              <span className="text-[10px] uppercase tracking-wider font-medium">Parrain</span>
+            </div>
+            <p className="text-lg font-semibold text-yellow-400">{formatCurrency((summary as any).referralBonus ?? 0)}</p>
           </CardContent>
         </Card>
       </div>
@@ -107,7 +130,7 @@ export default function Dashboard() {
                    <Activity className="w-5 h-5" />}
                 </div>
                 <div>
-                  <p className="font-medium text-sm capitalize">{tx.type}</p>
+                  <p className="font-medium text-sm">{txLabel[tx.type] ?? tx.type}</p>
                   <p className="text-xs text-muted-foreground">{formatDateOnly(tx.createdAt)}</p>
                 </div>
               </div>

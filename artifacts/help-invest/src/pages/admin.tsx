@@ -22,10 +22,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
 import {
   Loader2, Users, Wallet, TrendingUp, ArrowUpRight, CheckCircle, XCircle,
   Send, Bell, BarChart3, ShieldAlert, ShieldCheck, Shield, Ban, UserCheck,
-  LockOpen, Lock,
+  LockOpen, Lock, Phone, Settings,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -46,11 +47,14 @@ export default function Admin() {
   const queryClient = useQueryClient();
 
   const [broadcastMsg, setBroadcastMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"stats" | "withdrawals" | "users" | "broadcast">("stats");
+  const [activeTab, setActiveTab] = useState<"stats" | "withdrawals" | "users" | "broadcast" | "settings">("stats");
   const [gainResult, setGainResult] = useState<string | null>(null);
   const [gainsLoading, setGainsLoading] = useState(false);
   const [withdrawalsOpen, setWithdrawalsOpen] = useState<boolean | null>(null);
   const [withdrawalToggleLoading, setWithdrawalToggleLoading] = useState(false);
+  const [momoNumber, setMomoNumber] = useState("");
+  const [momoSaved, setMomoSaved] = useState("");
+  const [momoLoading, setMomoLoading] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: withdrawals, isLoading: wLoading } = useGetAdminWithdrawals();
@@ -63,7 +67,35 @@ export default function Admin() {
       .then((r) => r.json())
       .then((d) => setWithdrawalsOpen(d.open))
       .catch(() => setWithdrawalsOpen(false));
+    fetch("/api/admin/settings/momo", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { setMomoNumber(d.momoNumber ?? ""); setMomoSaved(d.momoNumber ?? ""); })
+      .catch(() => {});
   }, []);
+
+  const handleSaveMomo = async () => {
+    if (!momoNumber.trim() || momoNumber.trim().length < 6) {
+      toast({ title: "Numéro invalide", description: "Minimum 6 chiffres.", variant: "destructive" });
+      return;
+    }
+    setMomoLoading(true);
+    try {
+      const res = await fetch("/api/admin/settings/momo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ momoNumber: momoNumber.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      setMomoSaved(momoNumber.trim());
+      toast({ title: "Numéro enregistré ✅", description: data.message });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setMomoLoading(false);
+    }
+  };
 
   const approve = useApproveWithdrawal();
   const reject = useRejectWithdrawal();
@@ -201,6 +233,7 @@ export default function Admin() {
     { key: "withdrawals", label: "Retraits", icon: ArrowUpRight },
     { key: "users", label: "Utilisateurs", icon: Users },
     { key: "broadcast", label: "Diffusion", icon: Send },
+    { key: "settings", label: "Paramètres", icon: Settings },
   ] as const;
 
   const pendingCount = withdrawals?.filter((w) => w.status === "pending").length ?? 0;
@@ -528,6 +561,50 @@ export default function Admin() {
               ))}
             </div>
           )
+        )}
+
+        {/* SETTINGS TAB */}
+        {activeTab === "settings" && (
+          <div className="space-y-4">
+            <Card className="border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-primary" /> Numéro Mobile Money (destinataire des dépôts)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Ce numéro recevra les paiements Mobile Money des utilisateurs. Il sera masqué dans l'app (seuls les 2 premiers et 2 derniers chiffres apparaissent).
+                </p>
+                {momoSaved && (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-2 text-sm">
+                    <span className="text-muted-foreground">Numéro actuel : </span>
+                    <span className="font-mono font-bold text-green-400">{momoSaved}</span>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Ex: 0838345527"
+                    value={momoNumber}
+                    onChange={(e) => setMomoNumber(e.target.value.replace(/\D/g, ""))}
+                    inputMode="numeric"
+                    maxLength={15}
+                    className="bg-background border-border/60 font-mono"
+                  />
+                  <Button
+                    onClick={handleSaveMomo}
+                    disabled={momoLoading || !momoNumber.trim()}
+                    className="bg-primary text-background hover:bg-primary/90 font-bold shrink-0"
+                  >
+                    {momoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer"}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Code USSD généré : <span className="font-mono text-primary">*144*2*{momoNumber || "VOTRE_NUMERO"}*&#123;montant&#125;#</span>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* BROADCAST TAB */}

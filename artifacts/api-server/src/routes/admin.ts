@@ -219,6 +219,30 @@ router.post("/trigger-gains", async (req, res) => {
   }
 });
 
+// Mobile Money number (admin set/get)
+router.get("/settings/momo", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "momo_number"));
+  res.json({ momoNumber: row?.value ?? "" });
+});
+
+router.post("/settings/momo", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { momoNumber } = req.body;
+  if (!momoNumber || typeof momoNumber !== "string" || momoNumber.trim().length < 6) {
+    res.status(400).json({ error: "Numéro invalide (minimum 6 chiffres)" });
+    return;
+  }
+  const val = momoNumber.trim();
+  const existing = await db.select().from(settingsTable).where(eq(settingsTable.key, "momo_number"));
+  if (existing.length > 0) {
+    await db.update(settingsTable).set({ value: val, updatedAt: new Date() }).where(eq(settingsTable.key, "momo_number"));
+  } else {
+    await db.insert(settingsTable).values({ key: "momo_number", value: val });
+  }
+  res.json({ message: `Numéro Mobile Money enregistré : ${val}` });
+});
+
 // Withdrawal toggle
 router.get("/withdrawals/status", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
