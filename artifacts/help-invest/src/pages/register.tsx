@@ -90,9 +90,9 @@ export default function Register() {
                 name="pin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Code PIN (4 chiffres)</FormLabel>
+                    <FormLabel>Code PIN (4 ou 8 chiffres)</FormLabel>
                     <FormControl>
-                      <Input placeholder="••••" type="password" maxLength={4} inputMode="numeric" {...field} />
+                      <Input placeholder="••••••••" type="password" maxLength={8} inputMode="numeric" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -106,7 +106,7 @@ export default function Register() {
                   <FormItem>
                     <FormLabel>Confirmer le code PIN</FormLabel>
                     <FormControl>
-                      <Input placeholder="••••" type="password" maxLength={4} inputMode="numeric" {...field} />
+                      <Input placeholder="••••••••" type="password" maxLength={8} inputMode="numeric" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

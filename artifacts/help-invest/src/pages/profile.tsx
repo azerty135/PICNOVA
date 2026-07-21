@@ -149,21 +149,21 @@ export default function Profile() {
                 <Label className="text-xs text-muted-foreground">PIN actuel</Label>
                 <Input
                   type="password"
-                  maxLength={4}
+                  maxLength={8}
                   value={currentPin}
                   onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ""))}
-                  placeholder="••••"
+                  placeholder="••••••••"
                   className="mt-1 bg-background border-border/50 text-center tracking-widest"
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Nouveau PIN (4 chiffres)</Label>
+                <Label className="text-xs text-muted-foreground">Nouveau PIN (4 ou 8 chiffres)</Label>
                 <Input
                   type="password"
-                  maxLength={4}
+                  maxLength={8}
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
-                  placeholder="••••"
+                  placeholder="••••••••"
                   className="mt-1 bg-background border-border/50 text-center tracking-widest"
                 />
               </div>
@@ -171,10 +171,10 @@ export default function Profile() {
                 <Label className="text-xs text-muted-foreground">Confirmer nouveau PIN</Label>
                 <Input
                   type="password"
-                  maxLength={4}
+                  maxLength={8}
                   value={confirmPin}
                   onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
-                  placeholder="••••"
+                  placeholder="••••••••"
                   className="mt-1 bg-background border-border/50 text-center tracking-widest"
                 />
               </div>

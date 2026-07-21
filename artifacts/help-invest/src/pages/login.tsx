@@ -76,9 +76,9 @@ export default function Login() {
                 name="pin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Code PIN (4 chiffres)</FormLabel>
+                    <FormLabel>Code PIN</FormLabel>
                     <FormControl>
-                      <Input placeholder="****" type="password" maxLength={4} inputMode="numeric" {...field} />
+                      <Input placeholder="••••••••" type="password" maxLength={8} inputMode="numeric" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -12,7 +12,7 @@ export default function Equipe() {
   const { data: team, isLoading } = useGetReferralTeam();
 
   const referralLink = user
-    ? `${window.location.origin}/register?ref=${user.referralCode}`
+    ? `${window.location.origin}${import.meta.env.BASE_URL}register?ref=${user.referralCode}`
     : "";
 
   const copyCode = () => {
