@@ -12,8 +12,8 @@ import { Loader2 } from "lucide-react";
 
 const registerSchema = z.object({
   phone: z.string().min(5, "Numéro de téléphone invalide"),
-  pin: z.string().regex(/^\d{4}$|^\d{8}$/, "Le code PIN doit contenir 4 chiffres"),
-  confirmPin: z.string().regex(/^\d{4}$|^\d{8}$/, "Le code PIN doit contenir 4 chiffres"),
+  pin: z.string().regex(/^\d{4}$|^\d{8}$/, "Le code PIN doit contenir 4 ou 8 chiffres"),
+  confirmPin: z.string().regex(/^\d{4}$|^\d{8}$/, "Le code PIN doit contenir 4 ou 8 chiffres"),
   referralCode: z.string().optional(),
 }).refine((data) => data.pin === data.confirmPin, {
   message: "Les codes PIN ne correspondent pas",

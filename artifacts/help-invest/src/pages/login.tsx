@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react";
 
 const loginSchema = z.object({
   phone: z.string().min(5, "Numéro de téléphone invalide"),
-  pin: z.string().length(4, "Le code PIN doit contenir 4 chiffres"),
+  pin: z.string().regex(/^\d{4}$|^\d{8}$/, "Le code PIN doit contenir 4 ou 8 chiffres"),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
