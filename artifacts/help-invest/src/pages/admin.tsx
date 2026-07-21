@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import {
   useGetAdminStats,
@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Users, Wallet, TrendingUp, ArrowUpRight, CheckCircle, XCircle,
   Send, Bell, BarChart3, ShieldAlert, ShieldCheck, Shield, Ban, UserCheck,
+  LockOpen, Lock,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -48,11 +49,21 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<"stats" | "withdrawals" | "users" | "broadcast">("stats");
   const [gainResult, setGainResult] = useState<string | null>(null);
   const [gainsLoading, setGainsLoading] = useState(false);
+  const [withdrawalsOpen, setWithdrawalsOpen] = useState<boolean | null>(null);
+  const [withdrawalToggleLoading, setWithdrawalToggleLoading] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: withdrawals, isLoading: wLoading } = useGetAdminWithdrawals();
   const { data: users, isLoading: uLoading } = useGetAdminUsers();
   const { data: notifications } = useGetAdminNotifications();
+
+  // Fetch withdrawal status on mount
+  useEffect(() => {
+    fetch("/api/admin/withdrawals/status", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setWithdrawalsOpen(d.open))
+      .catch(() => setWithdrawalsOpen(false));
+  }, []);
 
   const approve = useApproveWithdrawal();
   const reject = useRejectWithdrawal();
@@ -151,6 +162,25 @@ export default function Admin() {
       setGainResult("Erreur réseau");
     } finally {
       setGainsLoading(false);
+    }
+  };
+
+  const handleWithdrawalToggle = async (open: boolean) => {
+    setWithdrawalToggleLoading(true);
+    try {
+      const action = open ? "open" : "close";
+      const res = await fetch(`/api/admin/withdrawals/${action}`, { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (res.ok) {
+        setWithdrawalsOpen(open);
+        toast({ title: open ? "Retraits ouverts ✅" : "Retraits fermés 🔒", description: data.message });
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" });
+    } finally {
+      setWithdrawalToggleLoading(false);
     }
   };
 
@@ -298,9 +328,57 @@ export default function Admin() {
 
         {/* WITHDRAWALS TAB */}
         {activeTab === "withdrawals" && (
-          wLoading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-          ) : (
+          <div className="space-y-4">
+            {/* Withdrawal toggle */}
+            <Card className={`border-2 ${withdrawalsOpen ? "border-green-500/40" : "border-red-500/40"}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    {withdrawalsOpen
+                      ? <LockOpen className="w-5 h-5 text-green-400" />
+                      : <Lock className="w-5 h-5 text-red-400" />
+                    }
+                    <div>
+                      <p className="font-semibold text-sm text-foreground">
+                        Retraits&nbsp;
+                        <span className={withdrawalsOpen ? "text-green-400" : "text-red-400"}>
+                          {withdrawalsOpen === null ? "..." : withdrawalsOpen ? "OUVERTS" : "FERMÉS"}
+                        </span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {withdrawalsOpen
+                          ? "Les utilisateurs peuvent demander un retrait."
+                          : "Aucun utilisateur ne peut retirer pour l'instant."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white h-8 px-3 text-xs gap-1"
+                      onClick={() => handleWithdrawalToggle(true)}
+                      disabled={withdrawalToggleLoading || withdrawalsOpen === true}
+                    >
+                      <LockOpen className="w-3.5 h-3.5" /> Ouvrir
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-red-500/40 text-red-400 hover:bg-red-500/10 h-8 px-3 text-xs gap-1"
+                      onClick={() => handleWithdrawalToggle(false)}
+                      disabled={withdrawalToggleLoading || withdrawalsOpen === false}
+                    >
+                      <Lock className="w-3.5 h-3.5" /> Fermer
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Withdrawal requests */}
+            {wLoading ? (
+              <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+            ) : (
             <div className="space-y-3">
               {(!withdrawals || withdrawals.length === 0) && (
                 <div className="text-center py-12 text-muted-foreground text-sm">Aucune demande de retrait.</div>
@@ -354,7 +432,8 @@ export default function Admin() {
                 </Card>
               ))}
             </div>
-          )
+            )}
+          </div>
         )}
 
         {/* USERS TAB */}

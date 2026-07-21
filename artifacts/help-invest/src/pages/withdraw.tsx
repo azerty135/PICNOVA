@@ -10,7 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/format";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const withdrawSchema = z.object({
   amount: z.coerce.number().min(20, "Le montant minimum de retrait est de 20$"),
@@ -25,6 +26,14 @@ export default function Withdraw() {
   const [, setLocation] = useLocation();
   const createWithdrawal = useCreateWithdrawal();
   const { data: user } = useGetMe();
+  const [withdrawalsOpen, setWithdrawalsOpen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/withdrawals/status", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setWithdrawalsOpen(d.open))
+      .catch(() => setWithdrawalsOpen(false));
+  }, []);
 
   const form = useForm<WithdrawFormValues>({
     resolver: zodResolver(withdrawSchema),
@@ -52,7 +61,7 @@ export default function Withdraw() {
       onError: (err) => {
         toast({
           title: "Erreur",
-          description: err.error || "Erreur lors de la demande de retrait.",
+          description: (err as any).error || "Erreur lors de la demande de retrait.",
           variant: "destructive",
         });
       }
@@ -64,15 +73,30 @@ export default function Withdraw() {
       <header className="mb-6 flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-serif font-bold text-foreground">Retrait</h1>
-          <p className="text-muted-foreground text-sm">Récupérez vos fonds.</p>
+          <p className="text-muted-foreground text-sm">Récupérez vos gains.</p>
         </div>
         <div className="text-right">
-          <p className="text-xs uppercase text-muted-foreground tracking-wider mb-1">Solde dispo.</p>
+          <p className="text-xs uppercase text-muted-foreground tracking-wider mb-1">Gains disponibles</p>
           <p className="font-semibold text-primary">{user ? formatCurrency(user.balance) : "..."}</p>
         </div>
       </header>
 
-      <Card className="border-border/50">
+      {/* Withdrawals closed banner */}
+      {withdrawalsOpen === false && (
+        <Card className="border-2 border-red-500/40 bg-red-500/5">
+          <CardContent className="p-5 flex items-center gap-4">
+            <Lock className="w-8 h-8 text-red-400 shrink-0" />
+            <div>
+              <p className="font-semibold text-red-400 text-sm">Retraits temporairement fermés</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Les retraits sont actuellement désactivés par l'administrateur. Revenez plus tard.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className={`border-border/50 ${withdrawalsOpen === false ? "opacity-50 pointer-events-none select-none" : ""}`}>
         <CardContent className="p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -83,7 +107,7 @@ export default function Withdraw() {
                   <FormItem>
                     <FormLabel>Montant à retirer (USD)</FormLabel>
                     <FormControl>
-                      <Input type="number" min="20" step="1" {...field} className="text-lg font-medium" />
+                      <Input type="number" min="20" step="1" {...field} className="text-lg font-medium" disabled={!withdrawalsOpen} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -96,7 +120,7 @@ export default function Withdraw() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Méthode de réception</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!withdrawalsOpen}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Sélectionnez une méthode" />
@@ -121,16 +145,20 @@ export default function Withdraw() {
                   <FormItem>
                     <FormLabel>Détails du compte (Adresse crypto, IBAN, Numéro...)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Saisissez vos coordonnées de réception" {...field} />
+                      <Input placeholder="Saisissez vos coordonnées de réception" {...field} disabled={!withdrawalsOpen} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <Button type="submit" className="w-full h-12 font-semibold" disabled={createWithdrawal.isPending}>
+              <Button
+                type="submit"
+                className="w-full h-12 font-semibold"
+                disabled={createWithdrawal.isPending || !withdrawalsOpen}
+              >
                 {createWithdrawal.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Valider le retrait
+                {withdrawalsOpen === false ? "Retraits fermés" : "Valider le retrait"}
               </Button>
             </form>
           </Form>

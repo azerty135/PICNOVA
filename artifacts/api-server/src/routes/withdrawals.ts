@@ -1,9 +1,19 @@
 import { Router } from "express";
-import { db, usersTable, transactionsTable, withdrawalsTable } from "@workspace/db";
+import { db, usersTable, transactionsTable, withdrawalsTable, settingsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { CreateWithdrawalBody } from "@workspace/api-zod";
 
 const router = Router();
+
+async function isWithdrawalsOpen(): Promise<boolean> {
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "withdrawals_open"));
+  return row?.value === "true";
+}
+
+router.get("/status", async (_req, res) => {
+  const open = await isWithdrawalsOpen();
+  res.json({ open });
+});
 
 router.get("/", async (req, res) => {
   if (!req.session.userId) {
@@ -35,6 +45,13 @@ router.post("/", async (req, res) => {
     return;
   }
 
+  // Check if withdrawals are open
+  const open = await isWithdrawalsOpen();
+  if (!open) {
+    res.status(403).json({ error: "Les retraits sont actuellement fermés. Réessayez plus tard." });
+    return;
+  }
+
   const parsed = CreateWithdrawalBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Données invalides" });
@@ -54,13 +71,17 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const userBalance = parseFloat(user.balance);
-  if (userBalance < amount) {
-    res.status(400).json({ error: "Solde insuffisant pour ce retrait" });
+  // Only gains and referral bonuses are withdrawable (not invested capital)
+  // balance = current balance (invested capital was already deducted on investment)
+  // withdrawable = balance (gains + referral bonuses that have accumulated)
+  const withdrawableBalance = parseFloat(user.balance);
+
+  if (withdrawableBalance < amount) {
+    res.status(400).json({ error: "Solde disponible insuffisant pour ce retrait" });
     return;
   }
 
-  const newBalance = userBalance - amount;
+  const newBalance = withdrawableBalance - amount;
 
   await db.update(usersTable).set({
     balance: newBalance.toString(),

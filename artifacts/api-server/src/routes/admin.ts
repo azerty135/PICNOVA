@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, withdrawalsTable, transactionsTable, investmentsTable, notificationsTable } from "@workspace/db";
+import { db, usersTable, withdrawalsTable, transactionsTable, investmentsTable, notificationsTable, settingsTable } from "@workspace/db";
 import { eq, count, sql, desc } from "drizzle-orm";
 import { SendBroadcastBody } from "@workspace/api-zod";
 import { processDailyGains } from "../jobs/dailyGains";
@@ -217,6 +217,29 @@ router.post("/trigger-gains", async (req, res) => {
   } catch {
     res.status(500).json({ error: "Erreur lors du traitement des gains" });
   }
+});
+
+// Withdrawal toggle
+router.get("/withdrawals/status", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "withdrawals_open"));
+  res.json({ open: row?.value === "true" });
+});
+
+router.post("/withdrawals/open", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  await db.update(settingsTable)
+    .set({ value: "true", updatedAt: new Date() })
+    .where(eq(settingsTable.key, "withdrawals_open"));
+  res.json({ message: "Les retraits sont maintenant ouverts pour tous les utilisateurs." });
+});
+
+router.post("/withdrawals/close", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  await db.update(settingsTable)
+    .set({ value: "false", updatedAt: new Date() })
+    .where(eq(settingsTable.key, "withdrawals_open"));
+  res.json({ message: "Les retraits sont maintenant fermés." });
 });
 
 export default router;
