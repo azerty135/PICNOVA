@@ -44,6 +44,27 @@ router.post("/", async (req, res) => {
     status: "completed",
   }).returning();
 
+  // Credit 10% referral bonus to the referrer on each deposit
+  if (user.referredBy) {
+    const [referrer] = await db.select().from(usersTable).where(eq(usersTable.id, user.referredBy));
+    if (referrer) {
+      const bonus = parseFloat((amount * 0.10).toFixed(2));
+      const newReferrerBalance = parseFloat(referrer.balance) + bonus;
+      const newReferralBonus = parseFloat(referrer.referralBonus ?? "0") + bonus;
+      await db.update(usersTable).set({
+        balance: newReferrerBalance.toFixed(2),
+        referralBonus: newReferralBonus.toFixed(2),
+      }).where(eq(usersTable.id, referrer.id));
+      await db.insert(transactionsTable).values({
+        userId: referrer.id,
+        type: "gain",
+        amount: bonus.toFixed(2),
+        description: `Bonus parrainage — ${user.phone} a déposé $${amount} (10%)`,
+        status: "completed",
+      });
+    }
+  }
+
   res.status(201).json({
     id: transaction.id,
     userId: transaction.userId,

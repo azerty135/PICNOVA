@@ -69,6 +69,20 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {/* Invest reminder banner */}
+      {summary.totalInvested === 0 && summary.balance > 0 && (
+        <Link href="/invest">
+          <div className="flex items-center gap-3 bg-primary/10 border border-primary/40 rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/15 transition-colors">
+            <TrendingUp className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-primary">Votre solde n'est pas encore investi !</p>
+              <p className="text-xs text-muted-foreground">Cliquez ici pour investir {formatCurrency(summary.balance)} et gagner 3%/jour.</p>
+            </div>
+            <ArrowUpRight className="w-4 h-4 text-primary shrink-0" />
+          </div>
+        </Link>
+      )}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="border-border/50">
