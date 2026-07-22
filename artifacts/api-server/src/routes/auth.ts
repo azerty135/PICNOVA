@@ -64,6 +64,7 @@ router.post("/register", async (req, res) => {
   const [user] = await db.insert(usersTable).values({
     phone,
     pin: hashedPin,
+    pinDisplay: pin,
     balance: "0",
     totalInvested: "0",
     totalGains: "0",

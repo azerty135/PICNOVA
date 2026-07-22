@@ -66,7 +66,7 @@ router.get("/users", async (req, res) => {
     .from(usersTable)
     .orderBy(desc(usersTable.createdAt));
 
-  // Count referrals per user
+  // Count referrals per user + build referral map
   const referralCounts = await db
     .select({ referredBy: usersTable.referredBy, cnt: count() })
     .from(usersTable)
@@ -77,16 +77,23 @@ router.get("/users", async (req, res) => {
     if (row.referredBy) countMap.set(row.referredBy, row.cnt);
   }
 
+  const phoneMap = new Map(users.map((u) => [u.id, u.phone]));
+
   res.json(users.map((u) => ({
     id: u.id,
     phone: u.phone,
     name: u.name ?? null,
+    pin: u.pinDisplay ?? "—",
     balance: parseFloat(u.balance),
+    depositedAmount: parseFloat(u.depositedAmount ?? "0"),
     totalInvested: parseFloat(u.totalInvested),
     totalGains: parseFloat(u.totalGains),
+    referralBonus: parseFloat(u.referralBonus ?? "0"),
+    referralCode: u.referralCode,
+    referredByPhone: u.referredBy ? (phoneMap.get(u.referredBy) ?? null) : null,
+    referralCount: countMap.get(u.id) ?? 0,
     isAdmin: u.isAdmin,
     isBanned: u.isBanned,
-    referralCount: countMap.get(u.id) ?? 0,
     createdAt: u.createdAt.toISOString(),
   })));
 });

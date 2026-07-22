@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -19,6 +20,8 @@ import Equipe from "@/pages/equipe";
 import Service from "@/pages/service";
 import Admin from "@/pages/admin";
 
+const Support = lazy(() => import("./pages/support"));
+
 const queryClient = new QueryClient();
 
 function ProtectedRoutes() {
@@ -34,6 +37,7 @@ function ProtectedRoutes() {
         <Route path="/profile" component={Profile} />
         <Route path="/equipe" component={Equipe} />
         <Route path="/service" component={Service} />
+        <Route path="/support" component={() => <Suspense fallback={null}><Support /></Suspense>} />
         <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>

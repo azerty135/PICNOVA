@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowDownLeft, ArrowUpRight, TrendingUp, BarChart3, History, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, TrendingUp, BarChart3, History, Wallet, MessageCircle } from "lucide-react";
 
 const services = [
   {
@@ -55,6 +55,15 @@ const services = [
     color: "text-yellow-400",
     bg: "bg-yellow-500/10",
     border: "border-yellow-500/20",
+  },
+  {
+    href: "/support",
+    icon: MessageCircle,
+    label: "Support",
+    desc: "Contacter l'administrateur",
+    color: "text-cyan-400",
+    bg: "bg-cyan-500/10",
+    border: "border-cyan-500/20",
   },
 ];
 

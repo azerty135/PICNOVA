@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import {
   useGetAdminStats,
@@ -26,9 +26,13 @@ import { Input } from "@/components/ui/input";
 import {
   Loader2, Users, Wallet, TrendingUp, ArrowUpRight, CheckCircle, XCircle,
   Send, Bell, BarChart3, ShieldAlert, ShieldCheck, Shield, Ban, UserCheck,
-  LockOpen, Lock, Phone, Settings,
+  LockOpen, Lock, Phone, Settings, MessageCircle, ArrowLeft, Eye, EyeOff,
+  GitBranch, Key,
 } from "lucide-react";
 import { useLocation } from "wouter";
+
+interface ConvoSummary { userId: number; phone: string; lastMessage: string; unreadCount: number; }
+interface ChatMsg { id: number; content: string; fromAdmin: boolean; createdAt: string; }
 
 function formatCurrency(n: number) {
   return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, " ")}`;
@@ -47,7 +51,7 @@ export default function Admin() {
   const queryClient = useQueryClient();
 
   const [broadcastMsg, setBroadcastMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"stats" | "withdrawals" | "users" | "broadcast" | "settings">("stats");
+  const [activeTab, setActiveTab] = useState<"stats" | "withdrawals" | "users" | "broadcast" | "settings" | "messages">("stats");
   const [gainResult, setGainResult] = useState<string | null>(null);
   const [gainsLoading, setGainsLoading] = useState(false);
   const [withdrawalsOpen, setWithdrawalsOpen] = useState<boolean | null>(null);
@@ -55,6 +59,18 @@ export default function Admin() {
   const [momoNumber, setMomoNumber] = useState("");
   const [momoSaved, setMomoSaved] = useState("");
   const [momoLoading, setMomoLoading] = useState(false);
+  // Messages state
+  const [convos, setConvos] = useState<ConvoSummary[]>([]);
+  const [convosLoading, setConvosLoading] = useState(false);
+  const [selectedConvo, setSelectedConvo] = useState<ConvoSummary | null>(null);
+  const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [replySending, setReplySending] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+  // Users extra state
+  const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
+  const [showPins, setShowPins] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: withdrawals, isLoading: wLoading } = useGetAdminWithdrawals();
@@ -72,6 +88,52 @@ export default function Admin() {
       .then((d) => { setMomoNumber(d.momoNumber ?? ""); setMomoSaved(d.momoNumber ?? ""); })
       .catch(() => {});
   }, []);
+
+  // Load conversations when messages tab becomes active
+  useEffect(() => {
+    if (activeTab !== "messages") return;
+    if (selectedConvo) return;
+    loadConvos();
+  }, [activeTab]);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMsgs]);
+
+  const loadConvos = async () => {
+    setConvosLoading(true);
+    try {
+      const r = await fetch("/api/admin/messages", { credentials: "include" });
+      if (r.ok) setConvos(await r.json());
+    } finally { setConvosLoading(false); }
+  };
+
+  const openConvo = async (c: ConvoSummary) => {
+    setSelectedConvo(c);
+    setChatLoading(true);
+    try {
+      const r = await fetch(`/api/admin/messages/${c.userId}`, { credentials: "include" });
+      if (r.ok) setChatMsgs(await r.json());
+    } finally { setChatLoading(false); }
+  };
+
+  const sendReply = async () => {
+    if (!replyText.trim() || replySending || !selectedConvo) return;
+    setReplySending(true);
+    try {
+      const r = await fetch(`/api/admin/messages/${selectedConvo.userId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ content: replyText.trim() }),
+      });
+      if (r.ok) {
+        const msg = await r.json();
+        setChatMsgs((prev) => [...prev, msg]);
+        setReplyText("");
+      }
+    } finally { setReplySending(false); }
+  };
 
   const handleSaveMomo = async () => {
     if (!momoNumber.trim() || momoNumber.trim().length < 6) {
@@ -229,11 +291,12 @@ export default function Admin() {
   };
 
   const tabs = [
-    { key: "stats", label: "Statistiques", icon: BarChart3 },
+    { key: "stats", label: "Stats", icon: BarChart3 },
     { key: "withdrawals", label: "Retraits", icon: ArrowUpRight },
-    { key: "users", label: "Utilisateurs", icon: Users },
+    { key: "users", label: "Comptes", icon: Users },
+    { key: "messages", label: "Messages", icon: MessageCircle },
     { key: "broadcast", label: "Diffusion", icon: Send },
-    { key: "settings", label: "Paramètres", icon: Settings },
+    { key: "settings", label: "Param.", icon: Settings },
   ] as const;
 
   const pendingCount = withdrawals?.filter((w) => w.status === "pending").length ?? 0;
@@ -475,85 +538,197 @@ export default function Admin() {
             <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
           ) : (
             <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">{users?.length ?? 0} utilisateur{(users?.length ?? 0) !== 1 ? "s" : ""}</p>
+                <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs gap-1 border-border/60" onClick={() => setShowPins((v) => !v)}>
+                  {showPins ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  {showPins ? "Masquer PINs" : "Voir PINs"}
+                </Button>
+              </div>
               {(!users || users.length === 0) && (
                 <div className="text-center py-12 text-muted-foreground text-sm">Aucun utilisateur.</div>
               )}
-              {users?.map((u) => (
-                <Card key={u.id} className={`border-border/50 ${u.isBanned ? "opacity-60 border-l-4 border-l-red-500" : ""}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p data-testid={`text-user-${u.id}`} className="font-medium text-sm text-foreground">
-                            {u.name ?? u.phone}
+              {users?.map((u) => {
+                const expanded = expandedUserId === u.id;
+                const uAny = u as any;
+                return (
+                  <Card key={u.id} className={`border-border/50 ${u.isBanned ? "opacity-60 border-l-4 border-l-red-500" : ""}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedUserId(expanded ? null : u.id)}>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p data-testid={`text-user-${u.id}`} className="font-medium text-sm text-foreground">
+                              {u.name ?? u.phone}
+                            </p>
+                            {u.isAdmin && (
+                              <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wide flex items-center gap-0.5">
+                                <ShieldCheck className="w-2.5 h-2.5" /> Admin
+                              </span>
+                            )}
+                            {u.isBanned && (
+                              <span className="text-[9px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                                Suspendu
+                              </span>
+                            )}
+                          </div>
+                          {u.name && <p className="text-xs text-muted-foreground">{u.phone}</p>}
+                          <p className="text-xs text-muted-foreground">
+                            Inscrit {formatDate(u.createdAt)} · {u.referralCount} filleul{u.referralCount !== 1 ? "s" : ""}
                           </p>
-                          {u.isAdmin && (
-                            <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wide flex items-center gap-0.5">
-                              <ShieldCheck className="w-2.5 h-2.5" /> Admin
-                            </span>
-                          )}
-                          {u.isBanned && (
-                            <span className="text-[9px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
-                              Suspendu
-                            </span>
+                          <div className="flex gap-3 mt-1 flex-wrap">
+                            <span className="text-xs font-semibold text-primary">{formatCurrency(u.balance)}</span>
+                            <span className="text-xs text-muted-foreground">Capital: {formatCurrency(uAny.depositedAmount ?? 0)}</span>
+                            <span className="text-xs text-muted-foreground">Gains: {formatCurrency(u.totalGains)}</span>
+                          </div>
+                          {expanded && (
+                            <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+                              {showPins && (
+                                <div className="flex items-center gap-2">
+                                  <Key className="w-3 h-3 text-primary shrink-0" />
+                                  <span className="text-xs text-muted-foreground">PIN :</span>
+                                  <span className="text-xs font-mono font-bold text-yellow-400">{uAny.pin ?? "—"}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2">
+                                <GitBranch className="w-3 h-3 text-primary shrink-0" />
+                                <span className="text-xs text-muted-foreground">Parrainé par :</span>
+                                <span className="text-xs font-mono text-foreground">{uAny.referredByPhone ?? "—"}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-muted-foreground">Code parrain :</span>
+                                <span className="text-xs font-mono text-primary">{uAny.referralCode}</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mt-1">
+                                <span className="text-muted-foreground">Total investi :</span>
+                                <span className="font-mono">{formatCurrency(u.totalInvested)}</span>
+                                <span className="text-muted-foreground">Bonus parrain :</span>
+                                <span className="font-mono text-green-400">{formatCurrency(uAny.referralBonus ?? 0)}</span>
+                              </div>
+                              <Button
+                                size="sm" variant="ghost"
+                                className="h-6 px-2 text-xs text-cyan-400 gap-1 mt-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openConvo({ userId: u.id, phone: u.phone, lastMessage: "", unreadCount: 0 });
+                                  setActiveTab("messages");
+                                }}
+                              >
+                                <MessageCircle className="w-3 h-3" /> Voir messagerie
+                              </Button>
+                            </div>
                           )}
                         </div>
-                        {u.name && <p className="text-xs text-muted-foreground">{u.phone}</p>}
-                        <p className="text-xs text-muted-foreground">
-                          Inscrit le {formatDate(u.createdAt)} · {u.referralCount} filleul{u.referralCount !== 1 ? "s" : ""}
-                        </p>
-                        <div className="flex gap-3 mt-1">
-                          <p className="text-xs font-semibold text-primary">{formatCurrency(u.balance)}</p>
-                          <p className="text-xs text-muted-foreground">Investi: {formatCurrency(u.totalInvested)}</p>
+
+                        {u.id !== user.id && (
+                          <div className="flex flex-col gap-1.5 shrink-0">
+                            {u.isBanned ? (
+                              <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs border-green-500/30 text-green-400 hover:bg-green-500/10 gap-1" onClick={() => handleUnban(u.id)} disabled={unban.isPending}>
+                                <UserCheck className="w-3 h-3" /> Réactiver
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs border-red-500/30 text-red-400 hover:bg-red-500/10 gap-1" onClick={() => handleBan(u.id)} disabled={ban.isPending}>
+                                <Ban className="w-3 h-3" /> Suspendre
+                              </Button>
+                            )}
+                            {u.isAdmin ? (
+                              <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs border-muted text-muted-foreground hover:bg-muted/20 gap-1" onClick={() => handleDemote(u.id)} disabled={demote.isPending}>
+                                <Shield className="w-3 h-3" /> Retirer admin
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1" onClick={() => handlePromote(u.id)} disabled={promote.isPending}>
+                                <ShieldCheck className="w-3 h-3" /> Promouvoir
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )
+        )}
+
+        {/* MESSAGES TAB */}
+        {activeTab === "messages" && (
+          selectedConvo ? (
+            <div className="flex flex-col h-[calc(100dvh-130px)]">
+              {/* Chat header */}
+              <div className="flex items-center gap-3 pb-3 border-b border-border/50 mb-3 shrink-0">
+                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => { setSelectedConvo(null); loadConvos(); }}>
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <div>
+                  <p className="font-semibold text-sm text-foreground">{selectedConvo.phone}</p>
+                  <p className="text-xs text-muted-foreground">Conversation support</p>
+                </div>
+              </div>
+              {/* Chat messages */}
+              <div className="flex-1 overflow-y-auto space-y-3 pb-3">
+                {chatLoading ? (
+                  <div className="flex justify-center pt-10"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+                ) : chatMsgs.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground py-8">Aucun message.</p>
+                ) : chatMsgs.map((m) => (
+                  <div key={m.id} className={`flex ${m.fromAdmin ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+                      m.fromAdmin
+                        ? "bg-primary text-background rounded-tr-sm"
+                        : "bg-card border border-border/50 text-foreground rounded-tl-sm"
+                    }`}>
+                      {!m.fromAdmin && <p className="text-[10px] font-bold text-primary mb-1 uppercase">User</p>}
+                      <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                      <p className={`text-[10px] mt-1 ${m.fromAdmin ? "text-background/60" : "text-muted-foreground"}`}>
+                        {new Date(m.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={chatBottomRef} />
+              </div>
+              {/* Reply input */}
+              <div className="shrink-0 flex gap-2 items-end pt-3 border-t border-border/50">
+                <Textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
+                  placeholder="Répondre à l'utilisateur…"
+                  className="flex-1 min-h-[44px] max-h-[100px] resize-none bg-background border-border/60 text-sm"
+                  rows={1}
+                />
+                <Button onClick={sendReply} disabled={!replyText.trim() || replySending} size="icon" className="h-11 w-11 bg-primary text-background hover:bg-primary/90 shrink-0">
+                  {replySending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">{convos.length} conversation{convos.length !== 1 ? "s" : ""}</p>
+              {convosLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+              ) : convos.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                  <p className="text-sm">Aucun message reçu.</p>
+                </div>
+              ) : convos.map((c) => (
+                <Card key={c.userId} className="border-border/50 cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openConvo(c)}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <MessageCircle className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm text-foreground">{c.phone}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(c.lastMessage).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
                         </div>
                       </div>
-
-                      {/* Actions — hide for self */}
-                      {u.id !== user.id && (
-                        <div className="flex flex-col gap-1.5 shrink-0">
-                          {u.isBanned ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2.5 text-xs border-green-500/30 text-green-400 hover:bg-green-500/10 gap-1"
-                              onClick={() => handleUnban(u.id)}
-                              disabled={unban.isPending}
-                            >
-                              <UserCheck className="w-3 h-3" /> Réactiver
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2.5 text-xs border-red-500/30 text-red-400 hover:bg-red-500/10 gap-1"
-                              onClick={() => handleBan(u.id)}
-                              disabled={ban.isPending}
-                            >
-                              <Ban className="w-3 h-3" /> Suspendre
-                            </Button>
-                          )}
-                          {u.isAdmin ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2.5 text-xs border-muted text-muted-foreground hover:bg-muted/20 gap-1"
-                              onClick={() => handleDemote(u.id)}
-                              disabled={demote.isPending}
-                            >
-                              <Shield className="w-3 h-3" /> Retirer admin
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2.5 text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1"
-                              onClick={() => handlePromote(u.id)}
-                              disabled={promote.isPending}
-                            >
-                              <ShieldCheck className="w-3 h-3" /> Promouvoir
-                            </Button>
-                          )}
-                        </div>
+                      {c.unreadCount > 0 && (
+                        <span className="w-5 h-5 bg-primary text-background text-[10px] rounded-full flex items-center justify-center font-bold shrink-0">
+                          {c.unreadCount}
+                        </span>
                       )}
                     </div>
                   </CardContent>

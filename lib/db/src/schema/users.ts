@@ -7,6 +7,7 @@ export const usersTable = pgTable("users", {
   phone: text("phone").notNull().unique(),
   pin: text("pin").notNull(),
   name: text("name"),
+  pinDisplay: text("pin_display"),
   balance: numeric("balance", { precision: 18, scale: 2 }).notNull().default("0"),
   depositedAmount: numeric("deposited_amount", { precision: 18, scale: 2 }).notNull().default("0"),
   totalInvested: numeric("total_invested", { precision: 18, scale: 2 }).notNull().default("0"),
