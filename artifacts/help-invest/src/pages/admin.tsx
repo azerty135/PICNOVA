@@ -27,7 +27,7 @@ import {
   Loader2, Users, Wallet, TrendingUp, ArrowUpRight, CheckCircle, XCircle,
   Send, Bell, BarChart3, ShieldAlert, ShieldCheck, Shield, Ban, UserCheck,
   LockOpen, Lock, Phone, Settings, MessageCircle, ArrowLeft, Eye, EyeOff,
-  GitBranch, Key, Copy, Trash2, Check, Search,
+  GitBranch, Key, Copy, Trash2, Check, Search, ClipboardPaste,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -51,7 +51,7 @@ export default function Admin() {
   const queryClient = useQueryClient();
 
   const [broadcastMsg, setBroadcastMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"stats" | "withdrawals" | "users" | "broadcast" | "settings" | "messages">("stats");
+  const [activeTab, setActiveTab] = useState<"stats" | "withdrawals" | "deposits" | "users" | "broadcast" | "settings" | "messages">("stats");
   const [gainResult, setGainResult] = useState<string | null>(null);
   const [gainsLoading, setGainsLoading] = useState(false);
   const [withdrawalsOpen, setWithdrawalsOpen] = useState<boolean | null>(null);
@@ -74,6 +74,11 @@ export default function Admin() {
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
   const [showPins, setShowPins] = useState(false);
   const [userSearch, setUserSearch] = useState("");
+  // Deposits state
+  const [deposits, setDeposits] = useState<any[]>([]);
+  const [depositsLoading, setDepositsLoading] = useState(false);
+  const [depositActionId, setDepositActionId] = useState<number | null>(null);
+  const [expandedProofId, setExpandedProofId] = useState<number | null>(null);
 
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: withdrawals, isLoading: wLoading } = useGetAdminWithdrawals();
@@ -97,6 +102,12 @@ export default function Admin() {
     if (activeTab !== "messages") return;
     if (selectedConvo) return;
     loadConvos();
+  }, [activeTab]);
+
+  // Load deposits when deposits tab becomes active
+  useEffect(() => {
+    if (activeTab !== "deposits") return;
+    loadDeposits();
   }, [activeTab]);
 
   useEffect(() => {
@@ -312,6 +323,7 @@ export default function Admin() {
   const tabs = [
     { key: "stats", label: "Stats", icon: BarChart3 },
     { key: "withdrawals", label: "Retraits", icon: ArrowUpRight },
+    { key: "deposits", label: "Dépôts", icon: Wallet },
     { key: "users", label: "Comptes", icon: Users },
     { key: "messages", label: "Messages", icon: MessageCircle },
     { key: "broadcast", label: "Diffusion", icon: Send },
@@ -319,6 +331,43 @@ export default function Admin() {
   ] as const;
 
   const pendingCount = withdrawals?.filter((w) => w.status === "pending").length ?? 0;
+  const pendingDepositsCount = deposits.filter((d) => d.status === "pending").length;
+
+  const loadDeposits = async () => {
+    setDepositsLoading(true);
+    try {
+      const r = await fetch("/api/admin/deposits", { credentials: "include" });
+      if (r.ok) setDeposits(await r.json());
+    } finally { setDepositsLoading(false); }
+  };
+
+  const approveDeposit = async (id: number) => {
+    setDepositActionId(id);
+    try {
+      const r = await fetch(`/api/admin/deposits/${id}/approve`, { method: "POST", credentials: "include" });
+      const data = await r.json();
+      if (r.ok) {
+        toast({ title: "Dépôt approuvé", description: "Le solde de l'utilisateur a été crédité." });
+        setDeposits((prev) => prev.map((d) => d.id === id ? { ...d, status: "approved" } : d));
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } finally { setDepositActionId(null); }
+  };
+
+  const rejectDeposit = async (id: number) => {
+    setDepositActionId(id);
+    try {
+      const r = await fetch(`/api/admin/deposits/${id}/reject`, { method: "POST", credentials: "include" });
+      const data = await r.json();
+      if (r.ok) {
+        toast({ title: "Dépôt rejeté" });
+        setDeposits((prev) => prev.map((d) => d.id === id ? { ...d, status: "rejected" } : d));
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } finally { setDepositActionId(null); }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -354,6 +403,11 @@ export default function Admin() {
               {key === "withdrawals" && pendingCount > 0 && (
                 <span className="absolute top-2 right-2 w-4 h-4 bg-destructive text-white text-[9px] rounded-full flex items-center justify-center font-bold">
                   {pendingCount}
+                </span>
+              )}
+              {key === "deposits" && pendingDepositsCount > 0 && (
+                <span className="absolute top-2 right-2 w-4 h-4 bg-orange-500 text-white text-[9px] rounded-full flex items-center justify-center font-bold">
+                  {pendingDepositsCount}
                 </span>
               )}
             </button>
@@ -548,6 +602,86 @@ export default function Admin() {
               ))}
             </div>
             )}
+          </div>
+        )}
+
+        {/* DEPOSITS TAB */}
+        {activeTab === "deposits" && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {deposits.length} demande{deposits.length !== 1 ? "s" : ""}
+                {pendingDepositsCount > 0 && <span className="ml-2 text-orange-400 font-semibold">· {pendingDepositsCount} en attente</span>}
+              </p>
+              <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs gap-1 border-border/60" onClick={loadDeposits} disabled={depositsLoading}>
+                {depositsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Actualiser"}
+              </Button>
+            </div>
+            {depositsLoading && deposits.length === 0 ? (
+              <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+            ) : deposits.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">Aucune demande de dépôt.</div>
+            ) : deposits.map((dep: any) => (
+              <Card key={dep.id} className={`border-border/50 border-l-4 ${
+                dep.status === "approved" ? "border-l-green-500" :
+                dep.status === "rejected" ? "border-l-red-500" : "border-l-orange-400"
+              }`}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-primary text-base">{formatCurrency(dep.amount)}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${
+                          dep.status === "approved" ? "bg-green-500/10 text-green-400" :
+                          dep.status === "rejected" ? "bg-red-500/10 text-red-400" :
+                          "bg-orange-500/10 text-orange-400"
+                        }`}>
+                          {dep.status === "approved" ? "Approuvé" : dep.status === "rejected" ? "Rejeté" : "En attente"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{dep.userPhone} · {formatDate(dep.createdAt)}</p>
+                    </div>
+                    {dep.status === "pending" && (
+                      <div className="flex gap-1.5 shrink-0">
+                        <Button
+                          size="sm"
+                          className="h-7 px-2.5 text-xs bg-green-600 hover:bg-green-700 text-white gap-1"
+                          onClick={() => approveDeposit(dep.id)}
+                          disabled={depositActionId === dep.id}
+                        >
+                          {depositActionId === dep.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                          Approuver
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 text-xs border-red-500/30 text-red-400 hover:bg-red-500/10 gap-1"
+                          onClick={() => rejectDeposit(dep.id)}
+                          disabled={depositActionId === dep.id}
+                        >
+                          <XCircle className="w-3 h-3" /> Rejeter
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {/* Proof message */}
+                  <div className="space-y-1">
+                    <button
+                      className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setExpandedProofId(expandedProofId === dep.id ? null : dep.id)}
+                    >
+                      <ClipboardPaste className="w-3 h-3" />
+                      {expandedProofId === dep.id ? "Masquer" : "Voir"} le message de preuve
+                    </button>
+                    {expandedProofId === dep.id && (
+                      <div className="bg-background/60 border border-border/40 rounded-lg p-3 text-xs text-foreground font-mono whitespace-pre-wrap break-all">
+                        {dep.proofMessage || "—"}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
 

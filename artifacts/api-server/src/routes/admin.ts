@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, withdrawalsTable, transactionsTable, investmentsTable, notificationsTable, settingsTable } from "@workspace/db";
+import { db, usersTable, withdrawalsTable, transactionsTable, investmentsTable, notificationsTable, settingsTable, depositRequestsTable } from "@workspace/db";
 import { eq, count, sql, desc } from "drizzle-orm";
 import { SendBroadcastBody } from "@workspace/api-zod";
 import { processDailyGains } from "../jobs/dailyGains";
@@ -206,6 +206,99 @@ router.post("/withdrawals/:id/reject", async (req, res) => {
     await db.insert(transactionsTable).values({ userId: withdrawal.userId, type: "deposit", amount: withdrawal.amount, description: "Remboursement — retrait rejeté", status: "completed" });
   }
   res.json({ message: "Retrait rejeté et montant remboursé" });
+});
+
+// ── Deposit requests ─────────────────────────────────────────────────────────
+
+router.get("/deposits", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const rows = await db
+    .select({
+      id: depositRequestsTable.id,
+      userId: depositRequestsTable.userId,
+      phone: usersTable.phone,
+      amount: depositRequestsTable.amount,
+      method: depositRequestsTable.method,
+      proofMessage: depositRequestsTable.proofMessage,
+      status: depositRequestsTable.status,
+      createdAt: depositRequestsTable.createdAt,
+      processedAt: depositRequestsTable.processedAt,
+    })
+    .from(depositRequestsTable)
+    .leftJoin(usersTable, eq(depositRequestsTable.userId, usersTable.id))
+    .orderBy(desc(depositRequestsTable.createdAt));
+  res.json(rows.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    userPhone: r.phone ?? "—",
+    amount: parseFloat(r.amount),
+    method: r.method,
+    proofMessage: r.proofMessage ?? "",
+    status: r.status,
+    createdAt: r.createdAt.toISOString(),
+    processedAt: r.processedAt ? r.processedAt.toISOString() : null,
+  })));
+});
+
+router.post("/deposits/:id/approve", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  const [dep] = await db.select().from(depositRequestsTable).where(eq(depositRequestsTable.id, id));
+  if (!dep) { res.status(404).json({ error: "Dépôt non trouvé" }); return; }
+  if (dep.status !== "pending") { res.status(400).json({ error: "Ce dépôt n'est plus en attente" }); return; }
+
+  const amount = parseFloat(dep.amount);
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, dep.userId));
+  if (!user) { res.status(404).json({ error: "Utilisateur non trouvé" }); return; }
+
+  const newBalance = parseFloat(user.balance) + amount;
+  const newDepositedAmount = parseFloat(user.depositedAmount ?? "0") + amount;
+  await db.update(usersTable).set({
+    balance: newBalance.toFixed(2),
+    depositedAmount: newDepositedAmount.toFixed(2),
+  }).where(eq(usersTable.id, dep.userId));
+
+  await db.insert(transactionsTable).values({
+    userId: dep.userId,
+    type: "deposit",
+    amount: dep.amount,
+    description: `Dépôt approuvé via ${dep.method}`,
+    status: "completed",
+  });
+
+  // Credit 10% referral bonus to referrer
+  if (user.referredBy) {
+    const [referrer] = await db.select().from(usersTable).where(eq(usersTable.id, user.referredBy));
+    if (referrer) {
+      const bonus = parseFloat((amount * 0.10).toFixed(2));
+      await db.update(usersTable).set({
+        balance: (parseFloat(referrer.balance) + bonus).toFixed(2),
+        referralBonus: (parseFloat(referrer.referralBonus ?? "0") + bonus).toFixed(2),
+      }).where(eq(usersTable.id, referrer.id));
+      await db.insert(transactionsTable).values({
+        userId: referrer.id,
+        type: "gain",
+        amount: bonus.toFixed(2),
+        description: `Bonus parrainage — ${user.phone} a déposé $${amount} (10%)`,
+        status: "completed",
+      });
+    }
+  }
+
+  await db.update(depositRequestsTable).set({ status: "approved", processedAt: new Date() }).where(eq(depositRequestsTable.id, id));
+  res.json({ message: "Dépôt approuvé et solde crédité" });
+});
+
+router.post("/deposits/:id/reject", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  const [dep] = await db.select().from(depositRequestsTable).where(eq(depositRequestsTable.id, id));
+  if (!dep) { res.status(404).json({ error: "Dépôt non trouvé" }); return; }
+  if (dep.status !== "pending") { res.status(400).json({ error: "Ce dépôt n'est plus en attente" }); return; }
+  await db.update(depositRequestsTable).set({ status: "rejected", processedAt: new Date() }).where(eq(depositRequestsTable.id, id));
+  res.json({ message: "Dépôt rejeté" });
 });
 
 router.post("/broadcast", async (req, res) => {

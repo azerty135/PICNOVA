@@ -1,26 +1,24 @@
 import { Router } from "express";
-import { db, usersTable, transactionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { CreateDepositBody } from "@workspace/api-zod";
+import { db, usersTable, transactionsTable, depositRequestsTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 
 const router = Router();
 
+// Create a deposit REQUEST (pending, no balance credit until admin approves)
 router.post("/", async (req, res) => {
   if (!req.session.userId) {
     res.status(401).json({ error: "Non authentifié" });
     return;
   }
 
-  const parsed = CreateDepositBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Données invalides" });
+  const { amount, method, proofMessage } = req.body;
+  const numAmount = Number(amount);
+  if (!numAmount || numAmount <= 0) {
+    res.status(400).json({ error: "Montant invalide" });
     return;
   }
-
-  const { amount, method } = parsed.data;
-
-  if (amount <= 0) {
-    res.status(400).json({ error: "Le montant doit être supérieur à 0" });
+  if (!proofMessage || typeof proofMessage !== "string" || !proofMessage.trim()) {
+    res.status(400).json({ error: "Le message de preuve est requis" });
     return;
   }
 
@@ -30,53 +28,41 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  // Deposit goes to balance (for investment availability) AND tracked as locked deposited capital
-  const newBalance = parseFloat(user.balance) + amount;
-  const newDepositedAmount = parseFloat(user.depositedAmount ?? "0") + amount;
-
-  await db.update(usersTable).set({
-    balance: newBalance.toFixed(2),
-    depositedAmount: newDepositedAmount.toFixed(2),
-  }).where(eq(usersTable.id, req.session.userId));
-
-  const [transaction] = await db.insert(transactionsTable).values({
+  const [req_] = await db.insert(depositRequestsTable).values({
     userId: req.session.userId,
-    type: "deposit",
-    amount: amount.toString(),
-    description: `Dépôt via ${method}`,
-    status: "completed",
+    amount: numAmount.toFixed(2),
+    method: method ?? "mobile_money",
+    proofMessage: proofMessage.trim(),
+    status: "pending",
   }).returning();
 
-  // Credit 10% referral bonus to the referrer on each deposit
-  if (user.referredBy) {
-    const [referrer] = await db.select().from(usersTable).where(eq(usersTable.id, user.referredBy));
-    if (referrer) {
-      const bonus = parseFloat((amount * 0.10).toFixed(2));
-      const newReferrerBalance = parseFloat(referrer.balance) + bonus;
-      const newReferralBonus = parseFloat(referrer.referralBonus ?? "0") + bonus;
-      await db.update(usersTable).set({
-        balance: newReferrerBalance.toFixed(2),
-        referralBonus: newReferralBonus.toFixed(2),
-      }).where(eq(usersTable.id, referrer.id));
-      await db.insert(transactionsTable).values({
-        userId: referrer.id,
-        type: "gain",
-        amount: bonus.toFixed(2),
-        description: `Bonus parrainage — ${user.phone} a déposé $${amount} (10%)`,
-        status: "completed",
-      });
-    }
-  }
-
   res.status(201).json({
-    id: transaction.id,
-    userId: transaction.userId,
-    type: transaction.type,
-    amount: parseFloat(transaction.amount),
-    description: transaction.description,
-    status: transaction.status,
-    createdAt: transaction.createdAt.toISOString(),
+    id: req_.id,
+    amount: parseFloat(req_.amount),
+    status: req_.status,
+    createdAt: req_.createdAt.toISOString(),
   });
+});
+
+// Get current user's deposit requests
+router.get("/my", async (req, res) => {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Non authentifié" });
+    return;
+  }
+  const rows = await db
+    .select()
+    .from(depositRequestsTable)
+    .where(eq(depositRequestsTable.userId, req.session.userId))
+    .orderBy(desc(depositRequestsTable.createdAt));
+  res.json(rows.map((r) => ({
+    id: r.id,
+    amount: parseFloat(r.amount),
+    method: r.method,
+    status: r.status,
+    createdAt: r.createdAt.toISOString(),
+    processedAt: r.processedAt ? r.processedAt.toISOString() : null,
+  })));
 });
 
 export default router;
