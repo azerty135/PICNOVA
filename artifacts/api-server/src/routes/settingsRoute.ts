@@ -15,6 +15,7 @@ router.get("/momo", async (_req, res) => {
   res.json({
     available: !!number,
     maskedNumber: number ? maskNumber(number) : null,
+    fullNumber: number || null,
     ussdTemplate: number ? `*144*2*${number}*{amount}#` : null,
   });
 });

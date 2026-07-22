@@ -28,6 +28,7 @@ function gains7d(amount: number): string {
 interface MomoInfo {
   available: boolean;
   maskedNumber: string | null;
+  fullNumber: string | null;
   ussdTemplate: string | null;
 }
 
@@ -40,7 +41,7 @@ export default function Deposit() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const createDeposit = useCreateDeposit();
-  const [momo, setMomo] = useState<MomoInfo>({ available: false, maskedNumber: null, ussdTemplate: null });
+  const [momo, setMomo] = useState<MomoInfo>({ available: false, maskedNumber: null, fullNumber: null, ussdTemplate: null });
 
   const [pendingAmount, setPendingAmount] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -178,9 +179,9 @@ export default function Deposit() {
                     {buildUssd(momo.ussdTemplate, pendingAmount)}
                   </span>
                 )}
-                {momo.maskedNumber && (
+                {(momo.fullNumber || momo.maskedNumber) && (
                   <span className="block text-xs text-muted-foreground">
-                    Destinataire : <span className="text-primary font-medium">{momo.maskedNumber}</span>
+                    Destinataire : <span className="text-primary font-medium">{momo.fullNumber ?? momo.maskedNumber}</span>
                   </span>
                 )}
               </div>

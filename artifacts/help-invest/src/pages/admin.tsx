@@ -27,7 +27,7 @@ import {
   Loader2, Users, Wallet, TrendingUp, ArrowUpRight, CheckCircle, XCircle,
   Send, Bell, BarChart3, ShieldAlert, ShieldCheck, Shield, Ban, UserCheck,
   LockOpen, Lock, Phone, Settings, MessageCircle, ArrowLeft, Eye, EyeOff,
-  GitBranch, Key, Copy, Trash2, Check,
+  GitBranch, Key, Copy, Trash2, Check, Search,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -73,6 +73,7 @@ export default function Admin() {
   // Users extra state
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
   const [showPins, setShowPins] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
 
   const { data: stats, isLoading: statsLoading } = useGetAdminStats();
   const { data: withdrawals, isLoading: wLoading } = useGetAdminWithdrawals();
@@ -556,17 +557,36 @@ export default function Admin() {
             <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">{users?.length ?? 0} utilisateur{(users?.length ?? 0) !== 1 ? "s" : ""}</p>
-                <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs gap-1 border-border/60" onClick={() => setShowPins((v) => !v)}>
+              {/* Search + PIN toggle */}
+              <div className="flex gap-2 items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    placeholder="Rechercher par numéro…"
+                    className="pl-8 h-8 text-xs bg-background border-border/60"
+                  />
+                </div>
+                <Button size="sm" variant="outline" className="h-8 px-2.5 text-xs gap-1 border-border/60 shrink-0" onClick={() => setShowPins((v) => !v)}>
                   {showPins ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                   {showPins ? "Masquer PINs" : "Voir PINs"}
                 </Button>
               </div>
-              {(!users || users.length === 0) && (
-                <div className="text-center py-12 text-muted-foreground text-sm">Aucun utilisateur.</div>
-              )}
-              {users?.map((u) => {
+              {(() => {
+                const filtered = (users ?? []).filter((u) =>
+                  !userSearch.trim() || u.phone.includes(userSearch.trim())
+                );
+                return (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      {filtered.length} utilisateur{filtered.length !== 1 ? "s" : ""}
+                      {userSearch.trim() ? ` trouvé${filtered.length !== 1 ? "s" : ""}` : ""}
+                    </p>
+                    {filtered.length === 0 && (
+                      <div className="text-center py-12 text-muted-foreground text-sm">Aucun utilisateur trouvé.</div>
+                    )}
+                    {filtered.map((u) => {
                 const expanded = expandedUserId === u.id;
                 const uAny = u as any;
                 return (
@@ -665,6 +685,9 @@ export default function Admin() {
                   </Card>
                 );
               })}
+                  </>
+                );
+              })()}
             </div>
           )
         )}
