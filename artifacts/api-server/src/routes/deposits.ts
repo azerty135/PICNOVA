@@ -30,10 +30,13 @@ router.post("/", async (req, res) => {
     return;
   }
 
+  // Deposit goes to balance (for investment availability) AND tracked as locked deposited capital
   const newBalance = parseFloat(user.balance) + amount;
+  const newDepositedAmount = parseFloat(user.depositedAmount ?? "0") + amount;
 
   await db.update(usersTable).set({
-    balance: newBalance.toString(),
+    balance: newBalance.toFixed(2),
+    depositedAmount: newDepositedAmount.toFixed(2),
   }).where(eq(usersTable.id, req.session.userId));
 
   const [transaction] = await db.insert(transactionsTable).values({

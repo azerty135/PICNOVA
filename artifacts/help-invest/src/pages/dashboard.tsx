@@ -3,7 +3,7 @@ import { formatCurrency, formatDateOnly } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { ArrowDownLeft, ArrowUpRight, Activity, Wallet, TrendingUp, Gift } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Activity, Lock, TrendingUp, Gift } from "lucide-react";
 
 export default function Dashboard() {
   const { data: summary, isLoading, isError } = useGetDashboardSummary();
@@ -12,7 +12,7 @@ export default function Dashboard() {
     return (
       <div className="p-6 space-y-6 animate-pulse">
         <div className="h-8 bg-card w-1/3 rounded"></div>
-        <div className="h-32 bg-card rounded-xl"></div>
+        <div className="h-36 bg-card rounded-xl"></div>
         <div className="grid grid-cols-2 gap-4">
           <div className="h-24 bg-card rounded-xl"></div>
           <div className="h-24 bg-card rounded-xl"></div>
@@ -25,8 +25,11 @@ export default function Dashboard() {
     return <div className="p-6 text-destructive">Erreur lors du chargement des données.</div>;
   }
 
-  // Main displayable balance = daily gains + referral bonuses (what you've EARNED)
-  const earnings = (summary as any).totalGains + ((summary as any).referralBonus ?? 0);
+  const s = summary as any;
+  const withdrawable: number = s.withdrawable ?? 0;
+  const depositedAmount: number = s.depositedAmount ?? 0;
+  const totalGains: number = s.totalGains ?? 0;
+  const referralBonus: number = s.referralBonus ?? 0;
 
   const txLabel: Record<string, string> = {
     deposit: "Dépôt",
@@ -36,24 +39,23 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
-      <header className="mb-8">
+    <div className="p-4 md:p-8 space-y-5">
+      <header className="mb-6">
         <h1 className="text-2xl font-serif font-bold text-foreground">Aperçu</h1>
         <p className="text-muted-foreground text-sm">Bienvenue sur votre espace privé.</p>
       </header>
 
-      {/* Main Earnings Card */}
+      {/* Withdrawable Gains Card — main CTA */}
       <Card className="bg-gradient-to-br from-card to-background border-primary/20 shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-          <Wallet className="w-32 h-32" />
+        <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none">
+          <TrendingUp className="w-28 h-28" />
         </div>
         <CardContent className="p-6">
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Gains disponibles</p>
-          <h2 className="text-4xl font-bold text-white mb-1">{formatCurrency(earnings)}</h2>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">Gains disponibles (retirables)</p>
+          <h2 className="text-4xl font-bold text-primary mb-1">{formatCurrency(withdrawable)}</h2>
           <p className="text-xs text-muted-foreground mb-5">
-            Gains journaliers + bonus de parrainage
+            Gains journaliers + bonus de parrainage accumulés
           </p>
-
           <div className="flex gap-3">
             <Link href="/deposit" className="flex-1">
               <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
@@ -69,14 +71,32 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Invest reminder banner */}
-      {summary.totalInvested === 0 && summary.balance > 0 && (
+      {/* Locked Capital Card */}
+      {depositedAmount > 0 && (
+        <Card className="border-border/40 bg-card/60">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Capital déposé (verrouillé)</p>
+                <p className="text-sm text-muted-foreground">Génère 3%/jour · jamais retirable directement</p>
+              </div>
+            </div>
+            <p className="text-lg font-bold text-foreground shrink-0">{formatCurrency(depositedAmount)}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Invest reminder */}
+      {summary.totalInvested === 0 && (summary as any).depositedAmount > 0 && (
         <Link href="/invest">
           <div className="flex items-center gap-3 bg-primary/10 border border-primary/40 rounded-xl px-4 py-3 cursor-pointer hover:bg-primary/15 transition-colors">
             <TrendingUp className="w-5 h-5 text-primary shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-primary">Votre solde n'est pas encore investi !</p>
-              <p className="text-xs text-muted-foreground">Cliquez ici pour investir {formatCurrency(summary.balance)} et gagner 3%/jour.</p>
+              <p className="text-sm font-semibold text-primary">Boostez vos gains avec un plan 30 jours !</p>
+              <p className="text-xs text-muted-foreground">Investissez vos gains pour doubler votre rendement.</p>
             </div>
             <ArrowUpRight className="w-4 h-4 text-primary shrink-0" />
           </div>
@@ -91,7 +111,8 @@ export default function Dashboard() {
               <Activity className="w-4 h-4" />
               <span className="text-[10px] uppercase tracking-wider font-medium">Investi</span>
             </div>
-            <p className="text-lg font-semibold text-white">{formatCurrency(summary.totalInvested)}</p>
+            <p className="text-base font-semibold text-white">{formatCurrency(summary.totalInvested)}</p>
+            <p className="text-[9px] text-muted-foreground">plans 30j actifs</p>
           </CardContent>
         </Card>
 
@@ -101,7 +122,8 @@ export default function Dashboard() {
               <TrendingUp className="w-4 h-4 text-primary" />
               <span className="text-[10px] uppercase tracking-wider font-medium">Gains</span>
             </div>
-            <p className="text-lg font-semibold text-primary">{formatCurrency(summary.totalGains)}</p>
+            <p className="text-base font-semibold text-primary">{formatCurrency(totalGains)}</p>
+            <p className="text-[9px] text-muted-foreground">total accumulé</p>
           </CardContent>
         </Card>
 
@@ -111,16 +133,16 @@ export default function Dashboard() {
               <Gift className="w-4 h-4 text-yellow-400" />
               <span className="text-[10px] uppercase tracking-wider font-medium">Parrain</span>
             </div>
-            <p className="text-lg font-semibold text-yellow-400">{formatCurrency((summary as any).referralBonus ?? 0)}</p>
+            <p className="text-base font-semibold text-yellow-400">{formatCurrency(referralBonus)}</p>
+            <p className="text-[9px] text-muted-foreground">bonus filleuls</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="flex items-center justify-between mt-8 mb-4">
+      {/* Recent transactions */}
+      <div className="flex items-center justify-between mt-6 mb-3">
         <h3 className="font-semibold text-lg">Transactions Récentes</h3>
-        <Link href="/transactions" className="text-sm text-primary hover:underline">
-          Voir tout
-        </Link>
+        <Link href="/transactions" className="text-sm text-primary hover:underline">Voir tout</Link>
       </div>
 
       <div className="space-y-3">
@@ -133,10 +155,10 @@ export default function Dashboard() {
             <div key={tx.id} className="flex items-center justify-between p-4 bg-card border border-border/50 rounded-xl">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                  tx.type === 'deposit' ? 'bg-green-500/10 text-green-500' :
-                  tx.type === 'withdrawal' ? 'bg-orange-500/10 text-orange-500' :
+                  tx.type === 'deposit' ? 'bg-blue-500/10 text-blue-400' :
+                  tx.type === 'withdrawal' ? 'bg-orange-500/10 text-orange-400' :
                   tx.type === 'gain' ? 'bg-primary/10 text-primary' :
-                  'bg-blue-500/10 text-blue-500'
+                  'bg-purple-500/10 text-purple-400'
                 }`}>
                   {tx.type === 'deposit' ? <ArrowDownLeft className="w-5 h-5" /> :
                    tx.type === 'withdrawal' ? <ArrowUpRight className="w-5 h-5" /> :

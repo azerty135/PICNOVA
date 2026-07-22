@@ -8,6 +8,7 @@ export const usersTable = pgTable("users", {
   pin: text("pin").notNull(),
   name: text("name"),
   balance: numeric("balance", { precision: 18, scale: 2 }).notNull().default("0"),
+  depositedAmount: numeric("deposited_amount", { precision: 18, scale: 2 }).notNull().default("0"),
   totalInvested: numeric("total_invested", { precision: 18, scale: 2 }).notNull().default("0"),
   totalGains: numeric("total_gains", { precision: 18, scale: 2 }).notNull().default("0"),
   referralCode: text("referral_code").notNull(),

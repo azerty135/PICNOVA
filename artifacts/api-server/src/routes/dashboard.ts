@@ -36,11 +36,20 @@ router.get("/summary", async (req, res) => {
     .orderBy(desc(transactionsTable.createdAt))
     .limit(5);
 
+  const depositedAmount = parseFloat(user.depositedAmount ?? "0");
+  const totalGains = parseFloat(user.totalGains);
+  const referralBonus = parseFloat(user.referralBonus ?? "0");
+  const balance = parseFloat(user.balance);
+  // Withdrawable = gains + bonuses, capped at actual balance
+  const withdrawable = Math.min(balance, totalGains + referralBonus);
+
   res.json({
-    balance: parseFloat(user.balance),
+    balance,
+    depositedAmount,
+    withdrawable,
     totalInvested: parseFloat(user.totalInvested),
-    totalGains: parseFloat(user.totalGains),
-    referralBonus: parseFloat(user.referralBonus ?? "0"),
+    totalGains,
+    referralBonus,
     activeInvestments: activeInvestmentsResult.count,
     pendingWithdrawals: parseFloat(pendingWithdrawalsResult.total ?? "0"),
     recentTransactions: recentTransactions.map((t) => ({

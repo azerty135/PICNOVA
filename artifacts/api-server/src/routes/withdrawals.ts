@@ -10,6 +10,23 @@ async function isWithdrawalsOpen(): Promise<boolean> {
   return row?.value === "true";
 }
 
+// Compute withdrawable gains: only totalGains + referralBonus, capped at current balance
+// The deposit principal (depositedAmount) is NEVER withdrawable directly.
+function computeWithdrawable(user: {
+  balance: string;
+  totalGains: string;
+  referralBonus: string | null;
+  depositedAmount: string | null;
+}): number {
+  const balance = parseFloat(user.balance);
+  const totalGains = parseFloat(user.totalGains);
+  const referralBonus = parseFloat(user.referralBonus ?? "0");
+  const deposited = parseFloat(user.depositedAmount ?? "0");
+  // Withdrawable = gains + referral bonuses, but no more than (balance - deposited + gains_in_balance)
+  // Simplified: min(balance, totalGains + referralBonus)
+  return Math.min(balance, totalGains + referralBonus);
+}
+
 router.get("/status", async (_req, res) => {
   const open = await isWithdrawalsOpen();
   res.json({ open });
@@ -45,7 +62,6 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  // Check if withdrawals are open
   const open = await isWithdrawalsOpen();
   if (!open) {
     res.status(403).json({ error: "Les retraits sont actuellement fermés. Réessayez plus tard." });
@@ -71,20 +87,20 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  // Only gains and referral bonuses are withdrawable (not invested capital)
-  // balance = current balance (invested capital was already deducted on investment)
-  // withdrawable = balance (gains + referral bonuses that have accumulated)
-  const withdrawableBalance = parseFloat(user.balance);
+  // Only gains are withdrawable — never the deposit principal
+  const withdrawable = computeWithdrawable(user);
 
-  if (withdrawableBalance < amount) {
-    res.status(400).json({ error: "Solde disponible insuffisant pour ce retrait" });
+  if (amount > withdrawable) {
+    res.status(400).json({
+      error: `Seuls vos gains sont retirables. Montant disponible : $${withdrawable.toFixed(2)}`,
+    });
     return;
   }
 
-  const newBalance = withdrawableBalance - amount;
+  const newBalance = parseFloat(user.balance) - amount;
 
   await db.update(usersTable).set({
-    balance: newBalance.toString(),
+    balance: newBalance.toFixed(2),
   }).where(eq(usersTable.id, req.session.userId));
 
   const [withdrawal] = await db.insert(withdrawalsTable).values({
