@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2, MessageCircle, ShieldCheck } from "lucide-react";
+import { Send, Loader2, MessageCircle, ShieldCheck, Copy, Trash2, Check } from "lucide-react";
 import { formatDateOnly } from "@/lib/format";
 
 interface Msg {
@@ -16,7 +16,10 @@ export default function Support() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [longPressId, setLongPressId] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = async () => {
     try {
@@ -53,20 +56,43 @@ export default function Support() {
     }
   };
 
+  const copyMsg = async (msg: Msg) => {
+    await navigator.clipboard.writeText(msg.content);
+    setCopiedId(msg.id);
+    setTimeout(() => setCopiedId(null), 1500);
+    setLongPressId(null);
+  };
+
+  const deleteMsg = async (msg: Msg) => {
+    if (msg.fromAdmin) return;
+    const r = await fetch(`/api/messages/${msg.id}`, { method: "DELETE", credentials: "include" });
+    if (r.ok) {
+      setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+    }
+    setLongPressId(null);
+  };
+
+  const startPress = (id: number) => {
+    longPressTimer.current = setTimeout(() => setLongPressId(id), 400);
+  };
+  const endPress = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
+
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-4rem)] bg-background">
+    <div className="flex flex-col h-[calc(100dvh-4rem)] bg-background" onClick={() => setLongPressId(null)}>
       {/* Header */}
       <div className="px-4 py-4 bg-card border-b border-border/50 flex items-center gap-3 shrink-0">
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
           <ShieldCheck className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <p className="font-semibold text-sm text-foreground">Support HELP</p>
-          <p className="text-xs text-muted-foreground">Envoyez un message à l'administrateur</p>
+          <p className="font-semibold text-sm text-foreground">Support PICNOVA</p>
+          <p className="text-xs text-muted-foreground">Appui long sur un message pour options</p>
         </div>
       </div>
 
@@ -81,12 +107,23 @@ export default function Support() {
           </div>
         ) : (
           messages.map((msg) => (
-            <div key={msg.id} className={`flex ${msg.fromAdmin ? "justify-start" : "justify-end"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                msg.fromAdmin
-                  ? "bg-card border border-border/50 text-foreground rounded-tl-sm"
-                  : "bg-primary text-background rounded-tr-sm"
-              }`}>
+            <div
+              key={msg.id}
+              className={`flex flex-col ${msg.fromAdmin ? "items-start" : "items-end"} gap-0.5`}
+            >
+              <div
+                className={`relative max-w-[80%] rounded-2xl px-4 py-2.5 text-sm cursor-pointer select-none ${
+                  msg.fromAdmin
+                    ? "bg-card border border-border/50 text-foreground rounded-tl-sm"
+                    : "bg-primary text-background rounded-tr-sm"
+                } ${longPressId === msg.id ? "opacity-80 scale-[0.98]" : ""} transition-all`}
+                onMouseDown={() => startPress(msg.id)}
+                onMouseUp={endPress}
+                onMouseLeave={endPress}
+                onTouchStart={() => startPress(msg.id)}
+                onTouchEnd={endPress}
+                onClick={(e) => e.stopPropagation()}
+              >
                 {msg.fromAdmin && (
                   <p className="text-[10px] font-bold text-primary mb-1 uppercase tracking-wide">Admin</p>
                 )}
@@ -94,6 +131,33 @@ export default function Support() {
                 <p className={`text-[10px] mt-1 ${msg.fromAdmin ? "text-muted-foreground" : "text-background/60"}`}>
                   {formatDateOnly(msg.createdAt)}
                 </p>
+
+                {/* Action popup on long press */}
+                {longPressId === msg.id && (
+                  <div
+                    className={`absolute z-50 flex gap-1 p-1.5 bg-background border border-border rounded-xl shadow-xl ${
+                      msg.fromAdmin ? "left-0 -bottom-12" : "right-0 -bottom-12"
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg hover:bg-card text-foreground transition-colors"
+                      onClick={() => copyMsg(msg)}
+                    >
+                      {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      Copier
+                    </button>
+                    {!msg.fromAdmin && (
+                      <button
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
+                        onClick={() => deleteMsg(msg)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Supprimer
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))

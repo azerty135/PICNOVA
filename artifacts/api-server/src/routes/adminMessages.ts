@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, messagesTable } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -58,6 +58,15 @@ router.get("/:userId", async (req, res) => {
     id: m.id, content: m.content, fromAdmin: m.fromAdmin,
     readAt: m.readAt?.toISOString() ?? null, createdAt: m.createdAt.toISOString(),
   })));
+});
+
+// Admin: delete a specific message (any side)
+router.delete("/msg/:id", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  await db.delete(messagesTable).where(eq(messagesTable.id, id));
+  res.json({ ok: true });
 });
 
 // Admin: reply to a user

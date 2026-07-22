@@ -96,7 +96,7 @@ export default function Deposit() {
       {/* Header */}
       <div className="flex flex-col items-center pt-8 pb-4 px-4">
         <div className="w-20 h-20 rounded-full border-2 border-primary bg-card flex items-center justify-center mb-3 shadow-lg shadow-primary/10">
-          <span className="text-primary font-bold text-xl tracking-widest font-serif">HELP</span>
+          <span className="text-primary font-bold text-xl tracking-widest font-serif">PICNOVA</span>
         </div>
         <h2 className="text-xl font-semibold text-foreground">Effectuer un dépôt</h2>
         <p className="text-sm text-muted-foreground mt-1">Choisissez votre montant</p>

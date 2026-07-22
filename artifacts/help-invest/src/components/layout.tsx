@@ -61,10 +61,10 @@ export default function Layout({ children }: LayoutProps) {
         <div className="p-6 border-b border-border/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center">
-              <span className="text-primary font-bold text-sm">H</span>
+              <span className="text-primary font-bold text-sm">P</span>
             </div>
             <div>
-              <h1 className="text-xl font-serif font-bold text-primary tracking-wider">HELP</h1>
+              <h1 className="text-xl font-serif font-bold text-primary tracking-wider">PICNOVA</h1>
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Investissement</p>
             </div>
           </div>

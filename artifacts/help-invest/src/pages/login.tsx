@@ -50,7 +50,7 @@ export default function Login() {
     <div className="min-h-screen flex flex-col justify-center px-6 py-12 bg-background dark">
       <div className="w-full max-w-md mx-auto space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-serif font-bold text-primary tracking-widest uppercase">HELP</h1>
+          <h1 className="text-4xl font-serif font-bold text-primary tracking-widest uppercase">PICNOVA</h1>
           <p className="mt-3 text-muted-foreground text-sm uppercase tracking-widest">Plateforme d'investissement</p>
         </div>
 

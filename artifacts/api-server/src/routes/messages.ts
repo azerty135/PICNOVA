@@ -35,6 +35,19 @@ router.post("/", async (req, res) => {
   res.status(201).json({ id: msg.id, content: msg.content, fromAdmin: false, createdAt: msg.createdAt.toISOString() });
 });
 
+// User: delete one of their own messages
+router.delete("/:id", async (req, res) => {
+  if (!req.session.userId) { res.status(401).json({ error: "Non authentifié" }); return; }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  const [msg] = await db.select().from(messagesTable).where(eq(messagesTable.id, id));
+  if (!msg || msg.userId !== req.session.userId || msg.fromAdmin) {
+    res.status(403).json({ error: "Non autorisé" }); return;
+  }
+  await db.delete(messagesTable).where(eq(messagesTable.id, id));
+  res.json({ ok: true });
+});
+
 // User: count unread admin replies
 router.get("/unread", async (req, res) => {
   if (!req.session.userId) { res.status(401).json({ error: "Non authentifié" }); return; }

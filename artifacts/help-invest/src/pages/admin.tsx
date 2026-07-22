@@ -27,7 +27,7 @@ import {
   Loader2, Users, Wallet, TrendingUp, ArrowUpRight, CheckCircle, XCircle,
   Send, Bell, BarChart3, ShieldAlert, ShieldCheck, Shield, Ban, UserCheck,
   LockOpen, Lock, Phone, Settings, MessageCircle, ArrowLeft, Eye, EyeOff,
-  GitBranch, Key,
+  GitBranch, Key, Copy, Trash2, Check,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -67,6 +67,8 @@ export default function Admin() {
   const [chatLoading, setChatLoading] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [replySending, setReplySending] = useState(false);
+  const [chatCopiedId, setChatCopiedId] = useState<number | null>(null);
+  const [chatActionId, setChatActionId] = useState<number | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   // Users extra state
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
@@ -133,6 +135,22 @@ export default function Admin() {
         setReplyText("");
       }
     } finally { setReplySending(false); }
+  };
+
+  const copyChatMsg = async (m: ChatMsg) => {
+    await navigator.clipboard.writeText(m.content);
+    setChatCopiedId(m.id);
+    setTimeout(() => setChatCopiedId(null), 1500);
+    setChatActionId(null);
+  };
+
+  const deleteChatMsg = async (m: ChatMsg) => {
+    const endpoint = m.fromAdmin
+      ? `/api/admin/messages/msg/${m.id}`
+      : `/api/messages/${m.id}`;
+    const r = await fetch(endpoint, { method: "DELETE", credentials: "include" });
+    if (r.ok) setChatMsgs((prev) => prev.filter((x) => x.id !== m.id));
+    setChatActionId(null);
   };
 
   const handleSaveMomo = async () => {
@@ -307,7 +325,7 @@ export default function Admin() {
       <div className="sticky top-0 z-40 bg-card border-b border-border/50 px-4 py-3">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div>
-            <h1 className="text-lg font-bold text-primary font-serif">HELP — Admin</h1>
+            <h1 className="text-lg font-bold text-primary font-serif">PICNOVA — Admin</h1>
             <p className="text-xs text-muted-foreground">{user.phone}</p>
           </div>
           <Button size="sm" variant="ghost" onClick={() => setLocation("/dashboard")} className="text-xs text-muted-foreground">
@@ -579,6 +597,7 @@ export default function Admin() {
                             <span className="text-xs font-semibold text-primary">{formatCurrency(u.balance)}</span>
                             <span className="text-xs text-muted-foreground">Capital: {formatCurrency(uAny.depositedAmount ?? 0)}</span>
                             <span className="text-xs text-muted-foreground">Gains: {formatCurrency(u.totalGains)}</span>
+                            <span className="text-xs text-orange-400">Retiré: {formatCurrency(uAny.totalWithdrawn ?? 0)}</span>
                           </div>
                           {expanded && (
                             <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
@@ -671,17 +690,32 @@ export default function Admin() {
                 ) : chatMsgs.length === 0 ? (
                   <p className="text-center text-sm text-muted-foreground py-8">Aucun message.</p>
                 ) : chatMsgs.map((m) => (
-                  <div key={m.id} className={`flex ${m.fromAdmin ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                      m.fromAdmin
-                        ? "bg-primary text-background rounded-tr-sm"
-                        : "bg-card border border-border/50 text-foreground rounded-tl-sm"
-                    }`}>
+                  <div key={m.id} className={`flex flex-col ${m.fromAdmin ? "items-end" : "items-start"} gap-0.5`}>
+                    <div
+                      className={`relative max-w-[80%] rounded-2xl px-4 py-2.5 text-sm cursor-pointer ${
+                        m.fromAdmin
+                          ? "bg-primary text-background rounded-tr-sm"
+                          : "bg-card border border-border/50 text-foreground rounded-tl-sm"
+                      } ${chatActionId === m.id ? "opacity-80" : ""} transition-opacity`}
+                      onClick={() => setChatActionId(chatActionId === m.id ? null : m.id)}
+                    >
                       {!m.fromAdmin && <p className="text-[10px] font-bold text-primary mb-1 uppercase">User</p>}
                       <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
                       <p className={`text-[10px] mt-1 ${m.fromAdmin ? "text-background/60" : "text-muted-foreground"}`}>
                         {new Date(m.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </p>
+                      {chatActionId === m.id && (
+                        <div className={`absolute z-50 flex gap-1 p-1.5 bg-background border border-border rounded-xl shadow-xl ${m.fromAdmin ? "right-0 -bottom-12" : "left-0 -bottom-12"}`}
+                          onClick={(e) => e.stopPropagation()}>
+                          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg hover:bg-card text-foreground transition-colors" onClick={() => copyChatMsg(m)}>
+                            {chatCopiedId === m.id ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            Copier
+                          </button>
+                          <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg hover:bg-destructive/10 text-destructive transition-colors" onClick={() => deleteChatMsg(m)}>
+                            <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

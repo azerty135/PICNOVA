@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0a192f] flex flex-col items-center justify-center gap-4 dark">
-        <h1 className="text-4xl font-serif font-bold text-[#d4af37] tracking-widest">HELP</h1>
+        <h1 className="text-4xl font-serif font-bold text-[#d4af37] tracking-widest">PICNOVA</h1>
         <div className="w-8 h-8 border-2 border-[#d4af37]/30 border-t-[#d4af37] rounded-full animate-spin mt-2" />
       </div>
     );

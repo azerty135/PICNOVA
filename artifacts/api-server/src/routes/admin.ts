@@ -79,6 +79,14 @@ router.get("/users", async (req, res) => {
 
   const phoneMap = new Map(users.map((u) => [u.id, u.phone]));
 
+  // Total withdrawn per user (approved only)
+  const withdrawnRows = await db
+    .select({ userId: withdrawalsTable.userId, total: sql<string>`coalesce(sum(${withdrawalsTable.amount}), 0)` })
+    .from(withdrawalsTable)
+    .where(eq(withdrawalsTable.status, "approved"))
+    .groupBy(withdrawalsTable.userId);
+  const withdrawnMap = new Map(withdrawnRows.map((r) => [r.userId, parseFloat(r.total)]));
+
   res.json(users.map((u) => ({
     id: u.id,
     phone: u.phone,
@@ -88,6 +96,7 @@ router.get("/users", async (req, res) => {
     depositedAmount: parseFloat(u.depositedAmount ?? "0"),
     totalInvested: parseFloat(u.totalInvested),
     totalGains: parseFloat(u.totalGains),
+    totalWithdrawn: withdrawnMap.get(u.id) ?? 0,
     referralBonus: parseFloat(u.referralBonus ?? "0"),
     referralCode: u.referralCode,
     referredByPhone: u.referredBy ? (phoneMap.get(u.referredBy) ?? null) : null,
