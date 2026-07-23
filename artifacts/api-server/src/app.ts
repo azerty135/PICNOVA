@@ -8,6 +8,9 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Trust Render's reverse proxy so secure cookies work over HTTPS
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
@@ -38,6 +41,7 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   })
