@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, usersTable, transactionsTable } from "@workspace/db";
 import { eq, desc, count, and, sql } from "drizzle-orm";
 import { investmentsTable, withdrawalsTable } from "@workspace/db";
+import { applyPendingGains } from "../lib/applyPendingGains";
 
 const router = Router();
 
@@ -12,6 +13,9 @@ router.get("/summary", async (req, res) => {
   }
 
   const userId = req.session.userId;
+
+  // Credit any pending daily gains before returning data
+  await applyPendingGains(userId);
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) {

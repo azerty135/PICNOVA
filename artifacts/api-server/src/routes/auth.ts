@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
+import { applyPendingGains } from "../lib/applyPendingGains";
 
 const router = Router();
 
@@ -125,6 +126,9 @@ router.get("/me", async (req, res) => {
     res.status(401).json({ error: "Non authentifié" });
     return;
   }
+
+  // Credit any pending daily gains before returning profile
+  await applyPendingGains(req.session.userId);
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId));
   if (!user) {

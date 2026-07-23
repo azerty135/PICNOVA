@@ -76,8 +76,15 @@ router.post("/", async (req, res) => {
 
   const { amount, method, accountDetails } = parsed.data;
 
+  const MIN_WITHDRAWAL = 20;
+
   if (amount <= 0) {
     res.status(400).json({ error: "Le montant doit être supérieur à 0" });
+    return;
+  }
+
+  if (amount < MIN_WITHDRAWAL) {
+    res.status(400).json({ error: `Le montant minimum de retrait est $${MIN_WITHDRAWAL}` });
     return;
   }
 
