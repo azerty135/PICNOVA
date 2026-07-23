@@ -10,7 +10,7 @@ services:
     plan: free
     runtime: node
     buildCommand: npm install -g pnpm@10.26.1 && pnpm install --no-frozen-lockfile && BASE_PATH=/ PORT=3000 pnpm --filter @workspace/help-invest run build && pnpm --filter @workspace/api-server run build
-    startCommand: node artifacts/api-server/dist/index.mjs
+    startCommand: bash start.sh
     envVars:
       - key: NODE_ENV
         value: production
