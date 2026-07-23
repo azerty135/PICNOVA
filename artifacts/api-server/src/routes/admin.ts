@@ -202,7 +202,11 @@ router.post("/withdrawals/:id/reject", async (req, res) => {
   await db.update(withdrawalsTable).set({ status: "rejected", processedAt: new Date() }).where(eq(withdrawalsTable.id, id));
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, withdrawal.userId));
   if (user) {
-    await db.update(usersTable).set({ balance: (parseFloat(user.balance) + parseFloat(withdrawal.amount)).toString() }).where(eq(usersTable.id, withdrawal.userId));
+    const refundAmount = parseFloat(withdrawal.amount);
+    await db.update(usersTable).set({
+      balance: (parseFloat(user.balance) + refundAmount).toFixed(2),
+      totalGains: (parseFloat(user.totalGains) + refundAmount).toFixed(2),
+    }).where(eq(usersTable.id, withdrawal.userId));
     await db.insert(transactionsTable).values({ userId: withdrawal.userId, type: "deposit", amount: withdrawal.amount, description: "Remboursement — retrait rejeté", status: "completed" });
   }
   res.json({ message: "Retrait rejeté et montant remboursé" });

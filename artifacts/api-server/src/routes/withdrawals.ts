@@ -98,9 +98,12 @@ router.post("/", async (req, res) => {
   }
 
   const newBalance = parseFloat(user.balance) - amount;
+  // Also reduce totalGains so the withdrawable display updates immediately
+  const newTotalGains = Math.max(0, parseFloat(user.totalGains) - amount);
 
   await db.update(usersTable).set({
     balance: newBalance.toFixed(2),
+    totalGains: newTotalGains.toFixed(2),
   }).where(eq(usersTable.id, req.session.userId));
 
   const [withdrawal] = await db.insert(withdrawalsTable).values({
