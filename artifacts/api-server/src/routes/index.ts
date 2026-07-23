@@ -13,10 +13,12 @@ import userNotificationsRouter from "./userNotifications";
 import settingsRouter from "./settingsRoute";
 import messagesRouter from "./messages";
 import adminMessagesRouter from "./adminMessages";
+import setupRouter from "./setup";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(setupRouter);
 router.use("/auth", authRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/investments", investmentsRouter);
