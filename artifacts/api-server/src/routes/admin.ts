@@ -365,17 +365,17 @@ router.get("/withdrawals/status", async (req, res) => {
 
 router.post("/withdrawals/open", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
-  await db.update(settingsTable)
-    .set({ value: "true", updatedAt: new Date() })
-    .where(eq(settingsTable.key, "withdrawals_open"));
+  await db.insert(settingsTable)
+    .values({ key: "withdrawals_open", value: "true" })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value: "true", updatedAt: new Date() } });
   res.json({ message: "Les retraits sont maintenant ouverts pour tous les utilisateurs." });
 });
 
 router.post("/withdrawals/close", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
-  await db.update(settingsTable)
-    .set({ value: "false", updatedAt: new Date() })
-    .where(eq(settingsTable.key, "withdrawals_open"));
+  await db.insert(settingsTable)
+    .values({ key: "withdrawals_open", value: "false" })
+    .onConflictDoUpdate({ target: settingsTable.key, set: { value: "false", updatedAt: new Date() } });
   res.json({ message: "Les retraits sont maintenant fermés." });
 });
 
