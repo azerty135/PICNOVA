@@ -23,10 +23,16 @@ router.get("/summary", async (req, res) => {
     return;
   }
 
-  const [activeInvestmentsResult] = await db
-    .select({ count: count() })
-    .from(investmentsTable)
-    .where(and(eq(investmentsTable.userId, userId), eq(investmentsTable.status, "active")));
+  const [activeInvestmentsResult, activeInvAmountResult] = await Promise.all([
+    db.select({ count: count() })
+      .from(investmentsTable)
+      .where(and(eq(investmentsTable.userId, userId), eq(investmentsTable.status, "active")))
+      .then(r => r[0]),
+    db.select({ total: sql<string>`coalesce(sum(${investmentsTable.amount}), 0)` })
+      .from(investmentsTable)
+      .where(and(eq(investmentsTable.userId, userId), eq(investmentsTable.status, "active")))
+      .then(r => r[0]),
+  ]);
 
   const [pendingWithdrawalsResult] = await db
     .select({ total: sql<string>`coalesce(sum(${withdrawalsTable.amount}), 0)` })
@@ -40,7 +46,10 @@ router.get("/summary", async (req, res) => {
     .orderBy(desc(transactionsTable.createdAt))
     .limit(5);
 
-  const depositedAmount = parseFloat(user.depositedAmount ?? "0");
+  const rawDeposited = parseFloat(user.depositedAmount ?? "0");
+  const activeInvTotal = parseFloat(activeInvAmountResult?.total ?? "0");
+  // CAPITAL DÉPOSÉ shown = deposited minus what's currently in active plans
+  const depositedAmount = Math.max(0, rawDeposited - activeInvTotal);
   const totalGains = parseFloat(user.totalGains);
   const referralBonus = parseFloat(user.referralBonus ?? "0");
   const balance = parseFloat(user.balance);

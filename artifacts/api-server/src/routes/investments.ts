@@ -20,18 +20,30 @@ router.get("/", async (req, res) => {
     .where(eq(investmentsTable.userId, req.session.userId))
     .orderBy(desc(investmentsTable.createdAt));
 
-  res.json(investments.map((inv) => ({
-    id: inv.id,
-    userId: inv.userId,
-    amount: parseFloat(inv.amount),
-    dailyReturnRate: parseFloat(inv.dailyReturnRate),
-    totalReturn: parseFloat(inv.totalReturn),
-    status: inv.status,
-    startDate: inv.startDate.toISOString(),
-    endDate: inv.endDate ? inv.endDate.toISOString() : null,
-    durationDays: inv.durationDays,
-    createdAt: inv.createdAt.toISOString(),
-  })));
+  const now = new Date();
+  res.json(investments.map((inv) => {
+    const amount = parseFloat(inv.amount);
+    const dailyRate = parseFloat(inv.dailyReturnRate);
+    // Compute gains dynamically (cron may not have run on Render free tier)
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const daysElapsed = inv.status === "active"
+      ? Math.min(inv.durationDays, Math.floor((now.getTime() - new Date(inv.startDate).getTime()) / msPerDay))
+      : inv.durationDays;
+    const dynamicReturn = parseFloat((amount * dailyRate * daysElapsed).toFixed(2));
+
+    return {
+      id: inv.id,
+      userId: inv.userId,
+      amount,
+      dailyReturnRate: dailyRate,
+      totalReturn: dynamicReturn,
+      status: inv.status,
+      startDate: inv.startDate.toISOString(),
+      endDate: inv.endDate ? inv.endDate.toISOString() : null,
+      durationDays: inv.durationDays,
+      createdAt: inv.createdAt.toISOString(),
+    };
+  }));
 });
 
 router.post("/", async (req, res) => {

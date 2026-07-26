@@ -1,33 +1,38 @@
-import { db, usersTable, transactionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, transactionsTable, investmentsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 
 const DAILY_RATE = 0.03;
 
 /**
  * Calculates and credits any pending daily gains for a user based on
- * days elapsed since lastGainDate. Called on-demand so it works even
- * when the server sleeps (Render free tier).
+ * days elapsed since lastGainDate. Uses effective deposited amount
+ * (depositedAmount - active investments) so investing reduces the base.
+ * Called on-demand so it works even when the server sleeps (Render free tier).
  */
 export async function applyPendingGains(userId: number): Promise<void> {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) return;
 
-  const depositedAmount = parseFloat(user.depositedAmount ?? "0");
-  if (depositedAmount <= 0) return;
+  // Sum active investments to get effective deposited base
+  const activeInvs = await db
+    .select()
+    .from(investmentsTable)
+    .where(and(eq(investmentsTable.userId, userId), eq(investmentsTable.status, "active")));
+
+  const activeTotal = activeInvs.reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+  const effectiveDeposited = Math.max(0, parseFloat(user.depositedAmount ?? "0") - activeTotal);
+
+  if (effectiveDeposited <= 0) return;
 
   const now = new Date();
-
-  // Determine start: either lastGainDate or account creation date
   const lastGain = user.lastGainDate ?? user.createdAt;
-
-  // Calculate full days elapsed (each past midnight counts as one day)
   const msPerDay = 24 * 60 * 60 * 1000;
   const daysElapsed = Math.floor((now.getTime() - new Date(lastGain).getTime()) / msPerDay);
 
   if (daysElapsed <= 0) return;
 
-  const totalGain = parseFloat((depositedAmount * DAILY_RATE * daysElapsed).toFixed(2));
+  const totalGain = parseFloat((effectiveDeposited * DAILY_RATE * daysElapsed).toFixed(2));
   if (totalGain <= 0) return;
 
   const newBalance = parseFloat(user.balance) + totalGain;
@@ -43,9 +48,9 @@ export async function applyPendingGains(userId: number): Promise<void> {
     userId,
     type: "gain",
     amount: totalGain.toFixed(2),
-    description: `Gains journaliers — ${daysElapsed} jour(s) × 3% × $${depositedAmount}`,
+    description: `Gains journaliers — ${daysElapsed} jour(s) × 3% × $${effectiveDeposited}`,
     status: "completed",
   });
 
-  logger.info({ userId, daysElapsed, depositedAmount, totalGain }, "Pending gains applied on-demand");
+  logger.info({ userId, daysElapsed, effectiveDeposited, totalGain }, "Pending gains applied on-demand");
 }
