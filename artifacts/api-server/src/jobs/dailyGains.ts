@@ -49,7 +49,7 @@ export async function processDailyGains(): Promise<{ processed: number; totalPai
         ...(isComplete ? { status: "completed", endDate: now } : {}),
       }).where(eq(investmentsTable.id, inv.id));
 
-      // At maturity: return invested principal to balance
+      // At maturity: return invested principal to balance and restore depositedAmount
       if (isComplete) {
         const principal = parseFloat(inv.amount);
         const [latestUser] = await db.select().from(usersTable).where(eq(usersTable.id, inv.userId));
@@ -57,6 +57,7 @@ export async function processDailyGains(): Promise<{ processed: number; totalPai
           await db.update(usersTable).set({
             balance: (parseFloat(latestUser.balance) + principal).toFixed(2),
             totalInvested: Math.max(0, parseFloat(latestUser.totalInvested) - principal).toFixed(2),
+            depositedAmount: (parseFloat(latestUser.depositedAmount ?? "0") + principal).toFixed(2),
           }).where(eq(usersTable.id, inv.userId));
         }
         await db.insert(transactionsTable).values({

@@ -80,10 +80,13 @@ router.post("/", async (req, res) => {
 
   const newBalance = userBalance - amount;
   const newTotalInvested = parseFloat(user.totalInvested) + amount;
+  // Reduce depositedAmount so daily gains are only on remaining deposit
+  const newDepositedAmount = Math.max(0, parseFloat(user.depositedAmount ?? "0") - amount);
 
   await db.update(usersTable).set({
-    balance: newBalance.toString(),
-    totalInvested: newTotalInvested.toString(),
+    balance: newBalance.toFixed(2),
+    totalInvested: newTotalInvested.toFixed(2),
+    depositedAmount: newDepositedAmount.toFixed(2),
   }).where(eq(usersTable.id, req.session.userId));
 
   await db.insert(transactionsTable).values({
@@ -93,27 +96,6 @@ router.post("/", async (req, res) => {
     description: `Investissement de $${amount}`,
     status: "completed",
   });
-
-  // Credit 10% referral bonus to the referrer (if any)
-  if (user.referredBy) {
-    const [referrer] = await db.select().from(usersTable).where(eq(usersTable.id, user.referredBy));
-    if (referrer) {
-      const bonus = amount * 0.10;
-      const newReferrerBalance = parseFloat(referrer.balance) + bonus;
-      const newReferralBonus = parseFloat(referrer.referralBonus ?? "0") + bonus;
-      await db.update(usersTable).set({
-        balance: newReferrerBalance.toString(),
-        referralBonus: newReferralBonus.toString(),
-      }).where(eq(usersTable.id, referrer.id));
-      await db.insert(transactionsTable).values({
-        userId: referrer.id,
-        type: "gain",
-        amount: bonus.toFixed(2),
-        description: `Bonus parrainage — ${user.phone} a investi $${amount} (10%)`,
-        status: "completed",
-      });
-    }
-  }
 
   res.status(201).json({
     id: investment.id,
