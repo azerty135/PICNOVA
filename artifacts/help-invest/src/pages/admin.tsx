@@ -59,6 +59,9 @@ export default function Admin() {
   const [momoNumber, setMomoNumber] = useState("");
   const [momoSaved, setMomoSaved] = useState("");
   const [momoLoading, setMomoLoading] = useState(false);
+  const [whatsappLink, setWhatsappLink] = useState("");
+  const [whatsappSaved, setWhatsappSaved] = useState("");
+  const [whatsappLoading, setWhatsappLoading] = useState(false);
   // Messages state
   const [convos, setConvos] = useState<ConvoSummary[]>([]);
   const [convosLoading, setConvosLoading] = useState(false);
@@ -94,6 +97,10 @@ export default function Admin() {
     fetch("/api/admin/settings/momo", { credentials: "include" })
       .then((r) => r.json())
       .then((d) => { setMomoNumber(d.momoNumber ?? ""); setMomoSaved(d.momoNumber ?? ""); })
+      .catch(() => {});
+    fetch("/api/admin/settings/whatsapp", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { setWhatsappLink(d.whatsappLink ?? ""); setWhatsappSaved(d.whatsappLink ?? ""); })
       .catch(() => {});
   }, []);
 
@@ -163,6 +170,26 @@ export default function Admin() {
     const r = await fetch(endpoint, { method: "DELETE", credentials: "include" });
     if (r.ok) setChatMsgs((prev) => prev.filter((x) => x.id !== m.id));
     setChatActionId(null);
+  };
+
+  const handleSaveWhatsapp = async () => {
+    setWhatsappLoading(true);
+    try {
+      const res = await fetch("/api/admin/settings/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ whatsappLink: whatsappLink.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      setWhatsappSaved(whatsappLink.trim());
+      toast({ title: "Lien WhatsApp enregistré ✅", description: data.message });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setWhatsappLoading(false);
+    }
   };
 
   const handleSaveMomo = async () => {
@@ -932,6 +959,41 @@ export default function Admin() {
         {/* SETTINGS TAB */}
         {activeTab === "settings" && (
           <div className="space-y-4">
+            {/* WhatsApp link card */}
+            <Card className="border-green-500/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-green-400" /> Lien du groupe WhatsApp
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Ce lien apparaîtra sur la page Services pour tous les utilisateurs. Laissez vide pour masquer la carte.
+                </p>
+                {whatsappSaved && (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-2 text-sm break-all">
+                    <span className="text-muted-foreground">Lien actuel : </span>
+                    <span className="font-mono font-bold text-green-400">{whatsappSaved}</span>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="https://chat.whatsapp.com/..."
+                    value={whatsappLink}
+                    onChange={(e) => setWhatsappLink(e.target.value)}
+                    className="bg-background border-border/60"
+                  />
+                  <Button
+                    onClick={handleSaveWhatsapp}
+                    disabled={whatsappLoading}
+                    className="bg-green-600 text-white hover:bg-green-700 font-bold shrink-0"
+                  >
+                    {whatsappLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="border-primary/20">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">

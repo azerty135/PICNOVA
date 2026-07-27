@@ -333,6 +333,28 @@ router.post("/trigger-gains", async (req, res) => {
 });
 
 // Mobile Money number (admin set/get)
+router.get("/settings/whatsapp", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "whatsapp_link"));
+  res.json({ whatsappLink: row?.value ?? "" });
+});
+
+router.post("/settings/whatsapp", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { whatsappLink } = req.body;
+  if (typeof whatsappLink !== "string") {
+    return res.status(400).json({ error: "Lien invalide" });
+  }
+  const val = whatsappLink.trim();
+  const existing = await db.select().from(settingsTable).where(eq(settingsTable.key, "whatsapp_link"));
+  if (existing.length > 0) {
+    await db.update(settingsTable).set({ value: val, updatedAt: new Date() }).where(eq(settingsTable.key, "whatsapp_link"));
+  } else {
+    await db.insert(settingsTable).values({ key: "whatsapp_link", value: val });
+  }
+  res.json({ message: "Lien WhatsApp enregistré" });
+});
+
 router.get("/settings/momo", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "momo_number"));

@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { ArrowDownLeft, ArrowUpRight, TrendingUp, BarChart3, History, Wallet, MessageCircle } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, TrendingUp, BarChart3, History, Wallet, MessageCircle, Users } from "lucide-react";
 
 const services = [
   {
@@ -68,6 +69,15 @@ const services = [
 ];
 
 export default function Service() {
+  const [whatsappLink, setWhatsappLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/whatsapp", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (d.available && d.link) setWhatsappLink(d.link); })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="p-4 md:p-8 space-y-6">
       <header className="mb-6">
@@ -90,6 +100,22 @@ export default function Service() {
             </div>
           </Link>
         ))}
+
+        {/* Carte WhatsApp — visible uniquement si l'admin a configuré un lien */}
+        {whatsappLink && (
+          <a
+            href={whatsappLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-5 rounded-2xl border border-green-500/30 bg-card hover:bg-card/80 active:scale-[0.97] transition-all duration-150 cursor-pointer select-none block"
+          >
+            <div className="w-11 h-11 rounded-xl bg-green-500/15 flex items-center justify-center mb-3">
+              <Users className="w-6 h-6 text-green-400" />
+            </div>
+            <p className="font-semibold text-sm text-foreground leading-tight">Groupe WhatsApp</p>
+            <p className="text-xs text-muted-foreground mt-1 leading-snug">Rejoindre la communauté</p>
+          </a>
+        )}
       </div>
     </div>
   );
