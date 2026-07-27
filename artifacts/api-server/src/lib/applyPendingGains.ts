@@ -78,7 +78,7 @@ export async function applyPendingGains(userId: number): Promise<void> {
         userId,
         type: "gain",
         amount: (amount + pendingGains).toFixed(2),
-        description: `Plan 30j maturité — capital $${amount} + gains $${pendingGains} retirables`,
+        description: `Plan 30j maturité — gains $${pendingGains} retirables · capital $${amount} restitué au dépôt`,
         status: "completed",
       });
 
