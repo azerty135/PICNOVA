@@ -9,6 +9,12 @@ function maskNumber(num: string): string {
   return num.slice(0, 2) + "*".repeat(num.length - 4) + num.slice(-2);
 }
 
+router.get("/apk", async (_req, res) => {
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "apk_url"));
+  const link = row?.value ?? "";
+  res.json({ available: !!link, url: link || null });
+});
+
 router.get("/whatsapp", async (_req, res) => {
   const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "whatsapp_link"));
   const link = row?.value ?? "";

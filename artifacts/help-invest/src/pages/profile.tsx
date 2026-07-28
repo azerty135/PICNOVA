@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useLogout, useUpdateProfile, useGetUserNotifications } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { formatDate, formatCurrency } from "@/lib/format";
 import {
   LogOut, User as UserIcon, Shield, Settings, Bell, Edit2, Check, X, Loader2,
-  TrendingUp, DollarSign, Users,
+  TrendingUp, DollarSign, Users, Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -22,6 +22,14 @@ export default function Profile() {
   const queryClient = useQueryClient();
 
   const { data: notifications } = useGetUserNotifications();
+
+  const [apkUrl, setApkUrl] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/settings/apk", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (d.available && d.url) setApkUrl(d.url); })
+      .catch(() => {});
+  }, []);
 
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(user?.name ?? "");
@@ -224,6 +232,14 @@ export default function Profile() {
             <Settings className="w-4 h-4 mr-2" /> Panneau d'administration
           </Button>
         </Link>
+      )}
+
+      {apkUrl && (
+        <a href={apkUrl} download>
+          <Button className="w-full bg-green-600 hover:bg-green-700 text-white h-12 font-semibold">
+            <Download className="w-4 h-4 mr-2" /> Télécharger l'app Android (.apk)
+          </Button>
+        </a>
       )}
 
       <Button

@@ -62,6 +62,9 @@ export default function Admin() {
   const [whatsappLink, setWhatsappLink] = useState("");
   const [whatsappSaved, setWhatsappSaved] = useState("");
   const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const [apkUrl, setApkUrl] = useState("");
+  const [apkUrlSaved, setApkUrlSaved] = useState("");
+  const [apkLoading, setApkLoading] = useState(false);
   // Messages state
   const [convos, setConvos] = useState<ConvoSummary[]>([]);
   const [convosLoading, setConvosLoading] = useState(false);
@@ -101,6 +104,10 @@ export default function Admin() {
     fetch("/api/admin/settings/whatsapp", { credentials: "include" })
       .then((r) => r.json())
       .then((d) => { setWhatsappLink(d.whatsappLink ?? ""); setWhatsappSaved(d.whatsappLink ?? ""); })
+      .catch(() => {});
+    fetch("/api/admin/settings/apk", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { setApkUrl(d.apkUrl ?? ""); setApkUrlSaved(d.apkUrl ?? ""); })
       .catch(() => {});
   }, []);
 
@@ -170,6 +177,26 @@ export default function Admin() {
     const r = await fetch(endpoint, { method: "DELETE", credentials: "include" });
     if (r.ok) setChatMsgs((prev) => prev.filter((x) => x.id !== m.id));
     setChatActionId(null);
+  };
+
+  const handleSaveApk = async () => {
+    setApkLoading(true);
+    try {
+      const res = await fetch("/api/admin/settings/apk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ apkUrl: apkUrl.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erreur");
+      setApkUrlSaved(apkUrl.trim());
+      toast({ title: "Lien APK enregistré ✅", description: data.message });
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setApkLoading(false);
+    }
   };
 
   const handleSaveWhatsapp = async () => {
@@ -959,6 +986,41 @@ export default function Admin() {
         {/* SETTINGS TAB */}
         {activeTab === "settings" && (
           <div className="space-y-4">
+            {/* APK download card */}
+            <Card className="border-green-700/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Download className="w-4 h-4 text-green-300" /> Lien téléchargement APK Android
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Colle ici le lien direct vers le fichier .apk (Google Drive, Dropbox, etc.). Un bouton de téléchargement apparaîtra sur la page de connexion et le profil.
+                </p>
+                {apkUrlSaved && (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-2 text-sm break-all">
+                    <span className="text-muted-foreground">Lien actuel : </span>
+                    <span className="font-mono font-bold text-green-400 text-xs">{apkUrlSaved}</span>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="https://drive.google.com/..."
+                    value={apkUrl}
+                    onChange={(e) => setApkUrl(e.target.value)}
+                    className="bg-background border-border/60"
+                  />
+                  <Button
+                    onClick={handleSaveApk}
+                    disabled={apkLoading}
+                    className="bg-green-700 text-white hover:bg-green-800 font-bold shrink-0"
+                  >
+                    {apkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* WhatsApp link card */}
             <Card className="border-green-500/20">
               <CardHeader className="pb-3">

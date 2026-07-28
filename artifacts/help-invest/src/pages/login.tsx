@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const loginSchema = z.object({
   phone: z.string().min(5, "Numéro de téléphone invalide"),
@@ -20,7 +21,15 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function Login() {
   const { toast } = useToast();
   const { refreshUser } = useAuth();
-  
+
+  const [apkUrl, setApkUrl] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/settings/apk", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => { if (d.available && d.url) setApkUrl(d.url); })
+      .catch(() => {});
+  }, []);
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -99,6 +108,14 @@ export default function Login() {
             S'inscrire
           </Link>
         </p>
+
+        {apkUrl && (
+          <a href={apkUrl} download className="block">
+            <button className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-green-500/40 bg-green-500/10 text-green-400 text-sm font-semibold hover:bg-green-500/20 transition-colors">
+              <Download className="w-4 h-4" /> Télécharger l'app Android (.apk)
+            </button>
+          </a>
+        )}
       </div>
     </div>
   );

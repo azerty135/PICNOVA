@@ -333,6 +333,26 @@ router.post("/trigger-gains", async (req, res) => {
 });
 
 // Mobile Money number (admin set/get)
+router.get("/settings/apk", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "apk_url"));
+  res.json({ apkUrl: row?.value ?? "" });
+});
+
+router.post("/settings/apk", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const { apkUrl } = req.body;
+  if (typeof apkUrl !== "string") return res.status(400).json({ error: "URL invalide" });
+  const val = apkUrl.trim();
+  const existing = await db.select().from(settingsTable).where(eq(settingsTable.key, "apk_url"));
+  if (existing.length > 0) {
+    await db.update(settingsTable).set({ value: val, updatedAt: new Date() }).where(eq(settingsTable.key, "apk_url"));
+  } else {
+    await db.insert(settingsTable).values({ key: "apk_url", value: val });
+  }
+  res.json({ message: "Lien APK enregistré" });
+});
+
 router.get("/settings/whatsapp", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   const [row] = await db.select().from(settingsTable).where(eq(settingsTable.key, "whatsapp_link"));
