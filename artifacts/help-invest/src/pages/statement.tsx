@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { Download, ArrowDownLeft, ArrowUpRight, TrendingUp, Gift, Loader2, RefreshCw } from "lucide-react";
+import { Download, ArrowDownLeft, ArrowUpRight, TrendingUp, Gift, Loader2, RefreshCw, Share2 } from "lucide-react";
 import html2canvas from "html2canvas";
 
 interface StatementData {
@@ -53,6 +53,7 @@ export default function Statement() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
@@ -67,6 +68,8 @@ export default function Statement() {
 
   useEffect(() => { load(); }, []);
 
+  const filename = `PICNOVA-releve-${new Date().toISOString().slice(0, 10)}.png`;
+
   const handleDownload = async () => {
     if (!cardRef.current) return;
     setDownloading(true);
@@ -77,23 +80,48 @@ export default function Statement() {
         useCORS: true,
         logging: false,
       });
-      const dataUrl = canvas.toDataURL("image/png");
-      setPreviewUrl(dataUrl);
-    } catch (e) {
+      // Blob URL — plus fiable qu'un data URL sur Android
+      canvas.toBlob((blob) => {
+        if (!blob) { alert("Erreur génération image."); return; }
+        const url = URL.createObjectURL(blob);
+        setPreviewBlob(blob);
+        setPreviewUrl(url);
+      }, "image/png");
+    } catch {
       alert("Erreur lors de la génération de l'image. Réessayez.");
     } finally {
       setDownloading(false);
     }
   };
 
-  const handleSave = () => {
+  const handleShare = async () => {
+    if (!previewBlob) return;
+    const file = new File([previewBlob], filename, { type: "image/png" });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Relevé PICNOVA" });
+      } else {
+        handleSaveFile();
+      }
+    } catch {
+      handleSaveFile();
+    }
+  };
+
+  const handleSaveFile = () => {
     if (!previewUrl) return;
     const link = document.createElement("a");
-    link.download = `PICNOVA-releve-${new Date().toISOString().slice(0, 10)}.png`;
     link.href = previewUrl;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const closePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewBlob(null);
   };
 
   if (!user) return null;
@@ -105,26 +133,13 @@ export default function Statement() {
         {/* Barre du haut */}
         <div className="flex items-center justify-between px-4 py-3 bg-[#0a0f1e] border-b border-border/40 shrink-0">
           <span className="text-sm font-semibold text-foreground">Votre relevé</span>
-          <button
-            onClick={() => setPreviewUrl(null)}
-            className="px-3 py-1.5 rounded-lg border border-border/50 text-muted-foreground text-xs"
-          >
+          <button onClick={closePreview} className="px-3 py-1.5 rounded-lg border border-border/50 text-muted-foreground text-xs">
             ✕ Fermer
           </button>
         </div>
 
-        {/* Instruction bien visible */}
-        <div className="bg-yellow-500/15 border-b border-yellow-500/30 px-4 py-3 shrink-0 text-center">
-          <p className="text-yellow-400 font-semibold text-sm">
-            👆 Appuyez longuement sur l'image ci-dessous
-          </p>
-          <p className="text-yellow-300/70 text-xs mt-0.5">
-            puis choisissez <strong>"Enregistrer l'image"</strong> pour la mettre dans votre galerie
-          </p>
-        </div>
-
-        {/* Image */}
-        <div className="flex-1 overflow-auto flex items-start justify-center p-3">
+        {/* Image scrollable */}
+        <div className="flex-1 overflow-auto flex items-start justify-center p-3 bg-black">
           <img
             src={previewUrl}
             alt="Relevé PICNOVA"
@@ -133,14 +148,25 @@ export default function Statement() {
           />
         </div>
 
-        {/* Bouton télécharger (desktop / fallback) */}
-        <div className="shrink-0 px-4 pb-6 pt-2">
+        {/* Boutons d'action */}
+        <div className="shrink-0 px-4 pb-8 pt-3 bg-[#0a0f1e] border-t border-border/40 space-y-2">
+          {/* Bouton principal : Partager (ouvre menu natif Android) */}
           <button
-            onClick={handleSave}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-background font-semibold text-sm"
+            onClick={handleShare}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-background font-bold text-base"
+          >
+            <Share2 className="w-5 h-5" /> Partager / Enregistrer
+          </button>
+          {/* Bouton secondaire : téléchargement direct */}
+          <button
+            onClick={handleSaveFile}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-border/50 text-muted-foreground text-sm"
           >
             <Download className="w-4 h-4" /> Télécharger le fichier
           </button>
+          <p className="text-center text-xs text-muted-foreground pt-1">
+            Appuyez sur <strong className="text-foreground">Partager</strong> → choisissez <strong className="text-foreground">Enregistrer dans Photos</strong>
+          </p>
         </div>
       </div>
     );
