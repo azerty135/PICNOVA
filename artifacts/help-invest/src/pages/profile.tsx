@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { formatDate, formatCurrency } from "@/lib/format";
 import {
   LogOut, User as UserIcon, Shield, Settings, Bell, Edit2, Check, X, Loader2,
-  TrendingUp, DollarSign, Users, Download,
+  TrendingUp, DollarSign, Users, Download, FileText,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -220,6 +220,16 @@ export default function Profile() {
           </CardContent>
         </Card>
       )}
+
+      {/* Statement link */}
+      <Link href="/statement">
+        <Button
+          variant="outline"
+          className="w-full border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 h-12"
+        >
+          <FileText className="w-4 h-4 mr-2" /> Relevé de compte &amp; Facture
+        </Button>
+      </Link>
 
       {/* Admin panel link */}
       {user.isAdmin && (

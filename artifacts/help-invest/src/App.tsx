@@ -19,6 +19,7 @@ import Profile from "@/pages/profile";
 import Equipe from "@/pages/equipe";
 import Service from "@/pages/service";
 import Admin from "@/pages/admin";
+import Statement from "@/pages/statement";
 
 const Support = lazy(() => import("./pages/support"));
 
@@ -68,6 +69,7 @@ function ProtectedRoutes() {
         <Route path="/service" component={Service} />
         <Route path="/support" component={() => <Suspense fallback={null}><Support /></Suspense>} />
         <Route path="/admin" component={Admin} />
+        <Route path="/statement" component={Statement} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

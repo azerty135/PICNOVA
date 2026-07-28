@@ -14,6 +14,7 @@ import settingsRouter from "./settingsRoute";
 import messagesRouter from "./messages";
 import adminMessagesRouter from "./adminMessages";
 import setupRouter from "./setup";
+import statementRouter from "./statement";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use("/user/notifications", userNotificationsRouter);
 router.use("/settings", settingsRouter);
 router.use("/messages", messagesRouter);
 router.use("/admin/messages", adminMessagesRouter);
+router.use("/statement", statementRouter);
 
 export default router;
