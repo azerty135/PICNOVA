@@ -67,6 +67,24 @@ export default function Statement() {
 
   useEffect(() => { load(); }, []);
 
+  const shareOrPreview = async (blob: Blob, dataUrl: string) => {
+    const filename = `PICNOVA-releve-${new Date().toISOString().slice(0, 10)}.png`;
+    // Web Share API avec fichier (Android, iOS Safari 15+)
+    if (typeof navigator.canShare === "function") {
+      const file = new File([blob], filename, { type: "image/png" });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "Relevé PICNOVA" });
+          return; // partage réussi, pas besoin d'afficher la modale
+        } catch {
+          // annulé par l'utilisateur ou erreur → fallback
+        }
+      }
+    }
+    // Fallback : afficher l'image en plein écran
+    setPreviewUrl(dataUrl);
+  };
+
   const handleDownload = async () => {
     if (!cardRef.current) return;
     setDownloading(true);
@@ -77,17 +95,30 @@ export default function Statement() {
         useCORS: true,
         logging: false,
       });
-      const url = canvas.toDataURL("image/png");
-      setPreviewUrl(url);
+      const dataUrl = canvas.toDataURL("image/png");
+      // Convertir en Blob pour Web Share API
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      await shareOrPreview(blob, dataUrl);
     } finally {
       setDownloading(false);
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!previewUrl) return;
+    const res = await fetch(previewUrl);
+    const blob = await res.blob();
+    const filename = `PICNOVA-releve-${new Date().toISOString().slice(0, 10)}.png`;
+    if (typeof navigator.canShare === "function") {
+      const file = new File([blob], filename, { type: "image/png" });
+      if (navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: "Relevé PICNOVA" }); return; } catch { /* fallback */ }
+      }
+    }
+    // Fallback navigateur desktop
     const link = document.createElement("a");
-    link.download = `PICNOVA-releve-${new Date().toISOString().slice(0, 10)}.png`;
+    link.download = filename;
     link.href = previewUrl;
     link.click();
   };
