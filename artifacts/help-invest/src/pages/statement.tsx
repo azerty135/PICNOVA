@@ -52,6 +52,7 @@ export default function Statement() {
   const [data, setData] = useState<StatementData | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
@@ -76,16 +77,58 @@ export default function Statement() {
         useCORS: true,
         logging: false,
       });
-      const link = document.createElement("a");
-      link.download = `PICNOVA-releve-${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+      const url = canvas.toDataURL("image/png");
+      setPreviewUrl(url);
     } finally {
       setDownloading(false);
     }
   };
 
+  const handleSave = () => {
+    if (!previewUrl) return;
+    const link = document.createElement("a");
+    link.download = `PICNOVA-releve-${new Date().toISOString().slice(0, 10)}.png`;
+    link.href = previewUrl;
+    link.click();
+  };
+
   if (!user) return null;
+
+  /* ── Modale prévisualisation image ── */
+  if (previewUrl) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 bg-[#0a0f1e] border-b border-border/40 shrink-0">
+          <span className="text-sm font-semibold text-foreground">Votre relevé</span>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-background text-xs font-semibold"
+            >
+              <Download className="w-3.5 h-3.5" /> Enregistrer
+            </button>
+            <button
+              onClick={() => setPreviewUrl(null)}
+              className="px-3 py-1.5 rounded-lg border border-border/50 text-muted-foreground text-xs"
+            >
+              ✕ Fermer
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto flex items-start justify-center p-2">
+          <img
+            src={previewUrl}
+            alt="Relevé PICNOVA"
+            className="max-w-full rounded-xl shadow-2xl"
+            style={{ touchAction: "pinch-zoom" }}
+          />
+        </div>
+        <p className="text-center text-xs text-muted-foreground pb-4 pt-2 shrink-0">
+          📱 Sur Android : appuyez longuement sur l'image → "Enregistrer l'image"
+        </p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
