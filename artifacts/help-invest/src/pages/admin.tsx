@@ -27,7 +27,7 @@ import {
   Loader2, Users, Wallet, TrendingUp, ArrowUpRight, CheckCircle, XCircle,
   Send, Bell, BarChart3, ShieldAlert, ShieldCheck, Shield, Ban, UserCheck,
   LockOpen, Lock, Phone, Settings, MessageCircle, ArrowLeft, Eye, EyeOff,
-  GitBranch, Key, Copy, Trash2, Check, Search, ClipboardPaste,
+  GitBranch, Key, Copy, Trash2, Check, Search, ClipboardPaste, Download,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
