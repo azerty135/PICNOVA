@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -23,6 +23,35 @@ import Admin from "@/pages/admin";
 const Support = lazy(() => import("./pages/support"));
 
 const queryClient = new QueryClient();
+
+function UpdateBanner() {
+  const [reg, setReg] = useState<ServiceWorkerRegistration | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => setReg((e as CustomEvent).detail);
+    window.addEventListener('sw-update-available', handler);
+    return () => window.removeEventListener('sw-update-available', handler);
+  }, []);
+
+  if (!reg) return null;
+
+  const handleUpdate = () => {
+    reg.waiting?.postMessage('SKIP_WAITING');
+    window.location.reload();
+  };
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50 bg-primary text-background px-4 py-3 flex items-center justify-between shadow-lg">
+      <span className="text-sm font-medium">🚀 Nouvelle version disponible</span>
+      <button
+        onClick={handleUpdate}
+        className="text-xs font-bold bg-background text-primary px-3 py-1 rounded-full hover:bg-background/90"
+      >
+        Mettre à jour
+      </button>
+    </div>
+  );
+}
 
 function ProtectedRoutes() {
   return (
@@ -61,6 +90,7 @@ function App() {
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <AuthProvider>
+            <UpdateBanner />
             <Router />
           </AuthProvider>
         </WouterRouter>
