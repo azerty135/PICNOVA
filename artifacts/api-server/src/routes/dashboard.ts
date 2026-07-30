@@ -52,9 +52,10 @@ router.get("/summary", async (req, res) => {
   const depositedAmount = Math.max(0, rawDeposited - activeInvTotal);
   const totalGains = parseFloat(user.totalGains);
   const referralBonus = parseFloat(user.referralBonus ?? "0");
+  const picnovaBonus = parseFloat((user as any).picnovaBonus ?? "0");
   const balance = parseFloat(user.balance);
   // Withdrawable = gains + bonuses, capped at actual balance
-  const withdrawable = Math.min(balance, totalGains + referralBonus);
+  const withdrawable = Math.min(balance, totalGains + referralBonus + picnovaBonus);
 
   res.json({
     balance,
@@ -63,6 +64,7 @@ router.get("/summary", async (req, res) => {
     totalInvested: parseFloat(user.totalInvested),
     totalGains,
     referralBonus,
+    picnovaBonus,
     activeInvestments: activeInvestmentsResult.count,
     pendingWithdrawals: parseFloat(pendingWithdrawalsResult.total ?? "0"),
     recentTransactions: recentTransactions.map((t) => ({

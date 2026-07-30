@@ -131,6 +131,8 @@ router.post("/users/:id/adjust-balance", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const amount = parseFloat(req.body.amount);
+  // type: "gains" | "picnova"
+  const adjustType: string = req.body.adjustType ?? "gains";
   const reason: string = req.body.reason?.trim() || "Correction manuelle admin";
   if (isNaN(amount) || amount === 0) { res.status(400).json({ error: "Montant invalide (ne peut pas être 0)" }); return; }
 
@@ -140,15 +142,19 @@ router.post("/users/:id/adjust-balance", async (req, res) => {
   const newBalance = parseFloat((parseFloat(user.balance) + amount).toFixed(2));
   if (newBalance < 0) { res.status(400).json({ error: `Solde résultant négatif ($${newBalance}). Ajustez le montant.` }); return; }
 
-  // If it's a debit (negative amount), also reduce totalGains proportionally if it was a gain correction
-  const newTotalGains = amount < 0
-    ? Math.max(0, parseFloat((parseFloat(user.totalGains) + amount).toFixed(2)))
-    : parseFloat((parseFloat(user.totalGains) + amount).toFixed(2));
+  const updates: Record<string, string> = { balance: newBalance.toFixed(2) };
 
-  await db.update(usersTable).set({
-    balance: newBalance.toFixed(2),
-    totalGains: newTotalGains.toFixed(2),
-  }).where(eq(usersTable.id, id));
+  if (adjustType === "picnova") {
+    // Bonus PICNOVA → affecte picnovaBonus
+    const newPicnovaBonus = Math.max(0, parseFloat((parseFloat(user.picnovaBonus ?? "0") + amount).toFixed(2)));
+    updates.picnovaBonus = newPicnovaBonus.toFixed(2);
+  } else {
+    // Gains (créditer/débiter) → affecte totalGains
+    const newTotalGains = Math.max(0, parseFloat((parseFloat(user.totalGains) + amount).toFixed(2)));
+    updates.totalGains = newTotalGains.toFixed(2);
+  }
+
+  await db.update(usersTable).set(updates as any).where(eq(usersTable.id, id));
 
   await db.insert(transactionsTable).values({
     userId: id,

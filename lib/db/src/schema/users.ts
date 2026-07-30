@@ -15,6 +15,7 @@ export const usersTable = pgTable("users", {
   referralCode: text("referral_code").notNull(),
   referredBy: integer("referred_by"),
   referralBonus: numeric("referral_bonus", { precision: 18, scale: 2 }).notNull().default("0"),
+  picnovaBonus: numeric("picnova_bonus", { precision: 18, scale: 2 }).notNull().default("0"),
   isAdmin: boolean("is_admin").notNull().default(false),
   isBanned: boolean("is_banned").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -30,6 +30,7 @@ export default function Dashboard() {
   const depositedAmount: number = s.depositedAmount ?? 0;
   const totalGains: number = s.totalGains ?? 0;
   const referralBonus: number = s.referralBonus ?? 0;
+  const picnovaBonus: number = s.picnovaBonus ?? 0;
 
   const txLabel: Record<string, string> = {
     deposit: "Dépôt",
@@ -104,7 +105,7 @@ export default function Dashboard() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card className="border-border/50">
           <CardContent className="p-4">
             <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
@@ -135,6 +136,17 @@ export default function Dashboard() {
             </div>
             <p className="text-base font-semibold text-yellow-400">{formatCurrency(referralBonus)}</p>
             <p className="text-[9px] text-muted-foreground">bonus filleuls</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-1.5 text-primary mb-2">
+              <Gift className="w-4 h-4 text-primary" />
+              <span className="text-[10px] uppercase tracking-wider font-medium text-primary">Bonus PICNOVA</span>
+            </div>
+            <p className="text-base font-semibold text-primary">{formatCurrency(picnovaBonus)}</p>
+            <p className="text-[9px] text-muted-foreground">bonus plateforme</p>
           </CardContent>
         </Card>
       </div>

@@ -85,6 +85,7 @@ export default function Admin() {
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
   const [adjustAction, setAdjustAction] = useState<"credit" | "debit">("debit");
+  const [adjustType, setAdjustType] = useState<"gains" | "picnova">("gains");
   const [adjustLoading, setAdjustLoading] = useState(false);
   // Deposits state
   const [deposits, setDeposits] = useState<any[]>([]);
@@ -145,7 +146,7 @@ export default function Admin() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ amount: amt, reason: adjustReason || `Correction manuelle — ${adjustModal.phone}` }),
+        body: JSON.stringify({ amount: amt, adjustType, reason: adjustReason || `Correction manuelle — ${adjustModal.phone}` }),
       });
       const data = await r.json();
       if (!r.ok) { toast({ title: data.error ?? "Erreur", variant: "destructive" }); return; }
@@ -1202,6 +1203,30 @@ export default function Admin() {
               <p className="text-xs text-muted-foreground mt-0.5">
                 {adjustModal.phone} · Solde actuel : <span className="text-primary font-semibold">{formatCurrency(adjustModal.balance)}</span>
               </p>
+            </div>
+
+            {/* Type : Gains ou Bonus PICNOVA */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setAdjustType("gains")}
+                className={`py-2 rounded-xl text-xs font-bold border transition-colors ${
+                  adjustType === "gains"
+                    ? "bg-primary border-primary text-black"
+                    : "border-border/50 text-muted-foreground"
+                }`}
+              >
+                📈 Gains
+              </button>
+              <button
+                onClick={() => setAdjustType("picnova")}
+                className={`py-2 rounded-xl text-xs font-bold border transition-colors ${
+                  adjustType === "picnova"
+                    ? "bg-purple-500 border-purple-500 text-white"
+                    : "border-border/50 text-muted-foreground"
+                }`}
+              >
+                🎁 Bonus PICNOVA
+              </button>
             </div>
 
             {/* Créditer / Débiter toggle */}
