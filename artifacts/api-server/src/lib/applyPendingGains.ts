@@ -5,6 +5,10 @@ import { logger } from "./logger";
 const DAILY_RATE = 0.03;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// Process-level mutex: prevents two concurrent requests from double-crediting
+// gains for the same user (race condition between login / dashboard / statement).
+const inProgress = new Set<number>();
+
 function midnightUTC(d: Date): Date {
   const m = new Date(d);
   m.setUTCHours(0, 0, 0, 0);
@@ -25,6 +29,18 @@ function midnightUTC(d: Date): Date {
  *     (midnight UTC) → credited to balance + totalGains immediately.
  */
 export async function applyPendingGains(userId: number): Promise<void> {
+  // Anti-race-condition: if another request is already processing gains for
+  // this user, skip silently — they'll get the updated data moments later.
+  if (inProgress.has(userId)) return;
+  inProgress.add(userId);
+  try {
+    await _applyPendingGains(userId);
+  } finally {
+    inProgress.delete(userId);
+  }
+}
+
+async function _applyPendingGains(userId: number): Promise<void> {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) return;
 

@@ -1,14 +1,11 @@
 import { Router } from "express";
 import { db, usersTable, transactionsTable, investmentsTable, withdrawalsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
-import { applyPendingGains } from "../lib/applyPendingGains";
 
 const router = Router();
 
 router.get("/", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Non authentifié" });
-
-  await applyPendingGains(req.session.userId);
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId));
   if (!user) return res.status(404).json({ error: "Utilisateur introuvable" });

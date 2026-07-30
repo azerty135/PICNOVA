@@ -258,9 +258,16 @@ router.post("/deposits/:id/approve", async (req, res) => {
 
   const newBalance = parseFloat(user.balance) + amount;
   const newDepositedAmount = parseFloat(user.depositedAmount ?? "0") + amount;
+
+  // Reset lastGainDate to today's midnight so gains start from THIS deposit,
+  // not from account createdAt (which could be days earlier with $0 balance).
+  const todayMidnight = new Date();
+  todayMidnight.setUTCHours(0, 0, 0, 0);
+
   await db.update(usersTable).set({
     balance: newBalance.toFixed(2),
     depositedAmount: newDepositedAmount.toFixed(2),
+    lastGainDate: todayMidnight,
   }).where(eq(usersTable.id, dep.userId));
 
   await db.insert(transactionsTable).values({
