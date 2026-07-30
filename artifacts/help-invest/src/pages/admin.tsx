@@ -80,6 +80,11 @@ export default function Admin() {
   const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
   const [showPins, setShowPins] = useState(false);
   const [userSearch, setUserSearch] = useState("");
+  // Adjust balance modal
+  const [adjustModal, setAdjustModal] = useState<{ userId: number; phone: string; balance: number } | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustReason, setAdjustReason] = useState("");
+  const [adjustLoading, setAdjustLoading] = useState(false);
   // Deposits state
   const [deposits, setDeposits] = useState<any[]>([]);
   const [depositsLoading, setDepositsLoading] = useState(false);
@@ -127,6 +132,28 @@ export default function Admin() {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMsgs]);
+
+  const handleAdjustBalance = async () => {
+    if (!adjustModal) return;
+    const amt = parseFloat(adjustAmount);
+    if (isNaN(amt) || amt === 0) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
+    setAdjustLoading(true);
+    try {
+      const r = await fetch(`/api/admin/users/${adjustModal.userId}/adjust-balance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ amount: amt, reason: adjustReason || `Correction manuelle — ${adjustModal.phone}` }),
+      });
+      const data = await r.json();
+      if (!r.ok) { toast({ title: data.error ?? "Erreur", variant: "destructive" }); return; }
+      toast({ title: "✅ " + data.message });
+      queryClient.invalidateQueries({ queryKey: getGetAdminUsersQueryKey() });
+      setAdjustModal(null);
+      setAdjustAmount("");
+      setAdjustReason("");
+    } finally { setAdjustLoading(false); }
+  };
 
   const loadConvos = async () => {
     setConvosLoading(true);
@@ -866,6 +893,18 @@ export default function Admin() {
                                 <ShieldCheck className="w-3 h-3" /> Promouvoir
                               </Button>
                             )}
+                            <Button
+                              size="sm" variant="outline"
+                              className="h-7 px-2.5 text-xs border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 gap-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAdjustAmount("");
+                                setAdjustReason("");
+                                setAdjustModal({ userId: u.id, phone: u.phone, balance: u.balance });
+                              }}
+                            >
+                              <Wallet className="w-3 h-3" /> Ajuster
+                            </Button>
                           </div>
                         )}
                       </div>
@@ -1151,6 +1190,71 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {/* ── Modal ajustement de solde ── */}
+      {adjustModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-card border border-border/50 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
+            <div>
+              <h3 className="font-bold text-foreground text-base">Ajuster le solde</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {adjustModal.phone} · Solde actuel : <span className="text-primary font-semibold">{formatCurrency(adjustModal.balance)}</span>
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">
+                  Montant <span className="text-yellow-400">(+ pour créditer, - pour débiter)</span>
+                </label>
+                <Input
+                  type="number"
+                  placeholder="ex: -4.50 ou +10"
+                  value={adjustAmount}
+                  onChange={(e) => setAdjustAmount(e.target.value)}
+                  className="bg-background border-border/60"
+                />
+                {adjustAmount && !isNaN(parseFloat(adjustAmount)) && (
+                  <p className="text-xs mt-1">
+                    Nouveau solde estimé :{" "}
+                    <span className={parseFloat(adjustAmount) < 0 ? "text-red-400 font-semibold" : "text-green-400 font-semibold"}>
+                      {formatCurrency(Math.max(0, adjustModal.balance + parseFloat(adjustAmount)))}
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Motif (facultatif)</label>
+                <Input
+                  placeholder="ex: Correction double gain du 30/07"
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  className="bg-background border-border/60"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                className="flex-1 border-border/50"
+                onClick={() => setAdjustModal(null)}
+                disabled={adjustLoading}
+              >
+                Annuler
+              </Button>
+              <Button
+                className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold"
+                onClick={handleAdjustBalance}
+                disabled={adjustLoading || !adjustAmount || isNaN(parseFloat(adjustAmount)) || parseFloat(adjustAmount) === 0}
+              >
+                {adjustLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmer"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -126,6 +126,41 @@ router.post("/users/:id/demote", async (req, res) => {
   res.json({ message: "Droits administrateur retirés" });
 });
 
+router.post("/users/:id/adjust-balance", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+  const amount = parseFloat(req.body.amount);
+  const reason: string = req.body.reason?.trim() || "Correction manuelle admin";
+  if (isNaN(amount) || amount === 0) { res.status(400).json({ error: "Montant invalide (ne peut pas être 0)" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!user) { res.status(404).json({ error: "Utilisateur non trouvé" }); return; }
+
+  const newBalance = parseFloat((parseFloat(user.balance) + amount).toFixed(2));
+  if (newBalance < 0) { res.status(400).json({ error: `Solde résultant négatif ($${newBalance}). Ajustez le montant.` }); return; }
+
+  // If it's a debit (negative amount), also reduce totalGains proportionally if it was a gain correction
+  const newTotalGains = amount < 0
+    ? Math.max(0, parseFloat((parseFloat(user.totalGains) + amount).toFixed(2)))
+    : parseFloat((parseFloat(user.totalGains) + amount).toFixed(2));
+
+  await db.update(usersTable).set({
+    balance: newBalance.toFixed(2),
+    totalGains: newTotalGains.toFixed(2),
+  }).where(eq(usersTable.id, id));
+
+  await db.insert(transactionsTable).values({
+    userId: id,
+    type: amount > 0 ? "gain" : "withdrawal",
+    amount: Math.abs(amount).toFixed(2),
+    description: reason,
+    status: "completed",
+  });
+
+  res.json({ message: `Solde de ${user.phone} ajusté de ${amount > 0 ? "+" : ""}${amount}$. Nouveau solde: $${newBalance}` });
+});
+
 router.post("/users/:id/ban", async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   const id = parseInt(req.params.id);
