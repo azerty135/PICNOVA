@@ -84,6 +84,7 @@ export default function Admin() {
   const [adjustModal, setAdjustModal] = useState<{ userId: number; phone: string; balance: number } | null>(null);
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
+  const [adjustAction, setAdjustAction] = useState<"credit" | "debit">("debit");
   const [adjustLoading, setAdjustLoading] = useState(false);
   // Deposits state
   const [deposits, setDeposits] = useState<any[]>([]);
@@ -135,8 +136,9 @@ export default function Admin() {
 
   const handleAdjustBalance = async () => {
     if (!adjustModal) return;
-    const amt = parseFloat(adjustAmount);
-    if (isNaN(amt) || amt === 0) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
+    const abs = parseFloat(adjustAmount);
+    if (isNaN(abs) || abs <= 0) { toast({ title: "Montant invalide (doit être > 0)", variant: "destructive" }); return; }
+    const amt = adjustAction === "debit" ? -abs : abs;
     setAdjustLoading(true);
     try {
       const r = await fetch(`/api/admin/users/${adjustModal.userId}/adjust-balance`, {
@@ -1202,24 +1204,50 @@ export default function Admin() {
               </p>
             </div>
 
+            {/* Créditer / Débiter toggle */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setAdjustAction("credit")}
+                className={`py-2.5 rounded-xl text-sm font-bold border transition-colors ${
+                  adjustAction === "credit"
+                    ? "bg-green-500 border-green-500 text-black"
+                    : "border-border/50 text-muted-foreground"
+                }`}
+              >
+                ＋ Créditer
+              </button>
+              <button
+                onClick={() => setAdjustAction("debit")}
+                className={`py-2.5 rounded-xl text-sm font-bold border transition-colors ${
+                  adjustAction === "debit"
+                    ? "bg-red-500 border-red-500 text-white"
+                    : "border-border/50 text-muted-foreground"
+                }`}
+              >
+                － Débiter
+              </button>
+            </div>
+
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">
-                  Montant <span className="text-yellow-400">(+ pour créditer, - pour débiter)</span>
-                </label>
+                <label className="text-xs text-muted-foreground mb-1 block">Montant (toujours positif)</label>
                 <Input
                   type="number"
-                  placeholder="ex: -4.50 ou +10"
+                  min="0"
+                  placeholder="ex: 4.50"
                   value={adjustAmount}
                   onChange={(e) => setAdjustAmount(e.target.value)}
-                  className="bg-background border-border/60"
+                  className="bg-background border-border/60 text-lg font-bold"
                 />
-                {adjustAmount && !isNaN(parseFloat(adjustAmount)) && (
+                {adjustAmount && !isNaN(parseFloat(adjustAmount)) && parseFloat(adjustAmount) > 0 && (
                   <p className="text-xs mt-1">
-                    Nouveau solde estimé :{" "}
-                    <span className={parseFloat(adjustAmount) < 0 ? "text-red-400 font-semibold" : "text-green-400 font-semibold"}>
-                      {formatCurrency(Math.max(0, adjustModal.balance + parseFloat(adjustAmount)))}
+                    Nouveau solde :{" "}
+                    <span className={adjustAction === "debit" ? "text-red-400 font-bold" : "text-green-400 font-bold"}>
+                      {formatCurrency(Math.max(0,
+                        adjustModal.balance + (adjustAction === "debit" ? -parseFloat(adjustAmount) : parseFloat(adjustAmount))
+                      ))}
                     </span>
+                    {" "}(actuellement {formatCurrency(adjustModal.balance)})
                   </p>
                 )}
               </div>
@@ -1245,11 +1273,11 @@ export default function Admin() {
                 Annuler
               </Button>
               <Button
-                className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold"
+                className={`flex-1 font-bold ${adjustAction === "debit" ? "bg-red-500 hover:bg-red-400 text-white" : "bg-green-500 hover:bg-green-400 text-black"}`}
                 onClick={handleAdjustBalance}
-                disabled={adjustLoading || !adjustAmount || isNaN(parseFloat(adjustAmount)) || parseFloat(adjustAmount) === 0}
+                disabled={adjustLoading || !adjustAmount || isNaN(parseFloat(adjustAmount)) || parseFloat(adjustAmount) <= 0}
               >
-                {adjustLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmer"}
+                {adjustLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : adjustAction === "debit" ? "Débiter" : "Créditer"}
               </Button>
             </div>
           </div>
